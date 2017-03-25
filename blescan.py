@@ -47,39 +47,39 @@ ADV_SCAN_RSP=0x04
 
 
 def returnnumberpacket(pkt):
-    myInteger = 0
-    multiple = 256
-    for c in pkt:
-        myInteger +=  struct.unpack("B",c)[0] * multiple
-        multiple = 1
-    return myInteger 
+  myInteger = 0
+  multiple = 256
+  for c in pkt:
+    myInteger +=  struct.unpack("B",c)[0] * multiple
+    multiple = 1
+  return myInteger 
 
 def returnstringpacket(pkt):
-    myString = "";
-    for c in pkt:
-        myString +=  "%02x" %struct.unpack("B",c)[0]
-    return myString 
+  myString = "";
+  for c in pkt:
+    myString +=  "%02x" %struct.unpack("B",c)[0]
+  return myString 
 
 def printpacket(pkt):
-    for c in pkt:
-        sys.stdout.write("%02x " % struct.unpack("B",c)[0])
+  for c in pkt:
+    sys.stdout.write("%02x " % struct.unpack("B",c)[0])
 
 def get_packed_bdaddr(bdaddr_string):
-    packable_addr = []
-    addr = bdaddr_string.split(':')
-    addr.reverse()
-    for b in addr: 
-        packable_addr.append(int(b, 16))
-    return struct.pack("<BBBBBB", *packable_addr)
+  packable_addr = []
+  addr = bdaddr_string.split(':')
+  addr.reverse()
+  for b in addr: 
+    packable_addr.append(int(b, 16))
+  return struct.pack("<BBBBBB", *packable_addr)
 
 def packed_bdaddr_to_string(bdaddr_packed):
-    return ':'.join('%02x'%i for i in struct.unpack("<BBBBBB", bdaddr_packed[::-1]))
+  return ':'.join('%02x'%i for i in struct.unpack("<BBBBBB", bdaddr_packed[::-1]))
 
 def hci_enable_le_scan(sock):
-    hci_toggle_le_scan(sock, 0x01)
+  hci_toggle_le_scan(sock, 0x01)
 
 def hci_disable_le_scan(sock):
-    hci_toggle_le_scan(sock, 0x00)
+  hci_toggle_le_scan(sock, 0x00)
 
 def hci_toggle_le_scan(sock, enable):
 # hci_le_set_scan_enable(dd, 0x01, filter_dup, 1000);
@@ -99,84 +99,82 @@ def hci_toggle_le_scan(sock, enable):
 
 #        if (hci_send_req(dd, &rq, to) < 0)
 #                return -1;
-    cmd_pkt = struct.pack("<BB", enable, 0x00)
-    bluez.hci_send_cmd(sock, OGF_LE_CTL, OCF_LE_SET_SCAN_ENABLE, cmd_pkt)
+  cmd_pkt = struct.pack("<BB", enable, 0x00)
+  bluez.hci_send_cmd(sock, OGF_LE_CTL, OCF_LE_SET_SCAN_ENABLE, cmd_pkt)
 
 
 def hci_le_set_scan_parameters(sock):
-    old_filter = sock.getsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, 14)
+  old_filter = sock.getsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, 14)
 
-    SCAN_RANDOM = 0x01
-    OWN_TYPE = SCAN_RANDOM
-    SCAN_TYPE = 0x01
+  SCAN_RANDOM = 0x01
+  OWN_TYPE = SCAN_RANDOM
+  SCAN_TYPE = 0x01
 
 
-    
+  
 def parse_events(sock, loop_count=100):
-    old_filter = sock.getsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, 14)
+  old_filter = sock.getsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, 14)
 
-    # perform a device inquiry on bluetooth device #0
-    # The inquiry should last 8 * 1.28 = 10.24 seconds
-    # before the inquiry is performed, bluez should flush its cache of
-    # previously discovered devices
-    flt = bluez.hci_filter_new()
-    bluez.hci_filter_all_events(flt)
-    bluez.hci_filter_set_ptype(flt, bluez.HCI_EVENT_PKT)
-    sock.setsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, flt )
-    done = False
-    results = []
-    myFullList = []
-    for i in range(0, loop_count):
-        pkt = sock.recv(255)
-        ptype, event, plen = struct.unpack("BBB", pkt[:3])
-        #print "--------------" 
-        if event == bluez.EVT_INQUIRY_RESULT_WITH_RSSI:
-		i =0
-        elif event == bluez.EVT_NUM_COMP_PKTS:
-                i =0 
-        elif event == bluez.EVT_DISCONN_COMPLETE:
-                i =0 
-        elif event == LE_META_EVENT:
-            subevent, = struct.unpack("B", pkt[3])
-            pkt = pkt[4:]
-            if subevent == EVT_LE_CONN_COMPLETE:
-                le_handle_connection_complete(pkt)
-            elif subevent == EVT_LE_ADVERTISING_REPORT:
-                #print "advertising report"
-                num_reports = struct.unpack("B", pkt[0])[0]
-                report_pkt_offset = 0
-                for i in range(0, num_reports):
-		
-		    if (DEBUG == True):
-			print("-------------")
-                    	#print "\tfullpacket: ", printpacket(pkt)
-		    	print("\tUDID: ", printpacket(pkt[report_pkt_offset -22: report_pkt_offset - 6]))
-		    	print("\tMAJOR: ", printpacket(pkt[report_pkt_offset -6: report_pkt_offset - 4]))
-		    	print("\tMINOR: ", printpacket(pkt[report_pkt_offset -4: report_pkt_offset - 2]))
-                    	print("\tMAC address: ", packed_bdaddr_to_string(pkt[report_pkt_offset + 3:report_pkt_offset + 9]))
-		    	# commented out - don't know what this byte is.  It's NOT TXPower
-                    	txpower, = struct.unpack("b", pkt[report_pkt_offset -2])
-                    	print("\t(Unknown):", txpower)
-	
-                    	rssi, = struct.unpack("b", pkt[report_pkt_offset -1])
-                    	print("\tRSSI:", rssi)
-		    # build the return string
-                    Adstring = packed_bdaddr_to_string(pkt[report_pkt_offset + 3:report_pkt_offset + 9])
-		    Adstring += ","
-		    Adstring += returnstringpacket(pkt[report_pkt_offset -22: report_pkt_offset - 6]) 
-		    Adstring += ","
-		    Adstring += "%i" % returnnumberpacket(pkt[report_pkt_offset -6: report_pkt_offset - 4]) 
-		    Adstring += ","
-		    Adstring += "%i" % returnnumberpacket(pkt[report_pkt_offset -4: report_pkt_offset - 2]) 
-		    Adstring += ","
-		    Adstring += "%i" % struct.unpack("b", pkt[report_pkt_offset -2])
-		    Adstring += ","
-		    Adstring += "%i" % struct.unpack("b", pkt[report_pkt_offset -1])
+  # perform a device inquiry on bluetooth device #0
+  # The inquiry should last 8 * 1.28 = 10.24 seconds
+  # before the inquiry is performed, bluez should flush its cache of
+  # previously discovered devices
+  flt = bluez.hci_filter_new()
+  bluez.hci_filter_all_events(flt)
+  bluez.hci_filter_set_ptype(flt, bluez.HCI_EVENT_PKT)
+  sock.setsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, flt )
+  done = False
+  results = []
+  myFullList = []
+  
+  for i in range(0, loop_count):
+    pkt = sock.recv(255)
+    ptype, event, plen = struct.unpack("BBB", pkt[:3])
+    #print "--------------" 
+    if event == bluez.EVT_INQUIRY_RESULT_WITH_RSSI:
+      i = 0
+    elif event == bluez.EVT_NUM_COMP_PKTS:
+      i = 0 
+    elif event == bluez.EVT_DISCONN_COMPLETE:
+      i = 0 
+    elif event == LE_META_EVENT:
+      subevent, = struct.unpack("B", pkt[3])
+      pkt = pkt[4:]
+      if subevent == EVT_LE_CONN_COMPLETE:
+        le_handle_connection_complete(pkt)
+      elif subevent == EVT_LE_ADVERTISING_REPORT:
+        num_reports = struct.unpack("B", pkt[0])[0]
+        report_pkt_offset = 0
+        for i in range(0, num_reports):
+    
+      if (DEBUG == True):
+        print("-------------")
+        print("\tUDID: ", printpacket(pkt[report_pkt_offset -22: report_pkt_offset - 6]))
+        print("\tMAJOR: ", printpacket(pkt[report_pkt_offset -6: report_pkt_offset - 4]))
+        print("\tMINOR: ", printpacket(pkt[report_pkt_offset -4: report_pkt_offset - 2]))
+        print("\tMAC address: ", packed_bdaddr_to_string(pkt[report_pkt_offset + 3:report_pkt_offset + 9]))
+        # commented out - don't know what this byte is.  It's NOT TXPower
+        txpower, = struct.unpack("b", pkt[report_pkt_offset -2])
+        print("\t(Unknown):", txpower)
 
-		    #print "\tAdstring=", Adstring
- 		    myFullList.append(Adstring)
-                done = True
-    sock.setsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, old_filter )
-    return myFullList
+        rssi, = struct.unpack("b", pkt[report_pkt_offset -1])
+        print("\tRSSI:", rssi)
+      
+      # build the return string
+      Adstring = packed_bdaddr_to_string(pkt[report_pkt_offset + 3:report_pkt_offset + 9])
+      Adstring += ","
+      Adstring += returnstringpacket(pkt[report_pkt_offset -22: report_pkt_offset - 6]) 
+      Adstring += ","
+      Adstring += "%i" % returnnumberpacket(pkt[report_pkt_offset -6: report_pkt_offset - 4]) 
+      Adstring += ","
+      Adstring += "%i" % returnnumberpacket(pkt[report_pkt_offset -4: report_pkt_offset - 2]) 
+      Adstring += ","
+      Adstring += "%i" % struct.unpack("b", pkt[report_pkt_offset -2])
+      Adstring += ","
+      Adstring += "%i" % struct.unpack("b", pkt[report_pkt_offset -1])
 
+      myFullList.append(Adstring)
+      done = True
 
+  sock.setsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, old_filter )
+  return myFullList
