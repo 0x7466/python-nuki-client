@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 
 import re
 import logging
@@ -76,7 +76,7 @@ class GATTToolReceiver(threading.Thread):
             },
         }
 
-        for event in self._event_vector.values():
+        for event in list(self._event_vector.values()):
             event["event"] = threading.Event()
             event["before"] = None
             event["after"] = None
@@ -86,7 +86,7 @@ class GATTToolReceiver(threading.Thread):
     def run(self):
         items = [
             (event["pattern"], event)
-            for event in self._event_vector.values()
+            for event in list(self._event_vector.values())
         ]
         patterns = [item[0] for item in items]
         events = [item[1] for item in items]
@@ -295,7 +295,7 @@ class GATTToolBackend(BLEBackend):
                             'name': name
                         }
             log.info("Found %d BLE devices", len(devices))
-            return [device for device in devices.values()]
+            return [device for device in list(devices.values())]
         return []
 
     def connect(self, address, timeout=DEFAULT_CONNECT_TIMEOUT_S,

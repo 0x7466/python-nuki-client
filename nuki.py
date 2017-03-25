@@ -6,7 +6,7 @@ from byteswap import ByteSwapper
 from crc import CrcCalculator
 import nuki_messages
 import sys
-import ConfigParser
+import configparser
 import blescan
 import bluetooth._bluetooth as bluez
 
@@ -19,7 +19,7 @@ class Nuki():
 		self.crcCalculator = CrcCalculator()
 		self.byteSwapper = ByteSwapper()
 		self.macAddress = macAddress
-		self.config = ConfigParser.RawConfigParser()
+		self.config = configparser.RawConfigParser()
 		self.config.read('/home/pi/nuki/nuki.cfg')
 		self.device = None
 	
@@ -28,15 +28,15 @@ class Nuki():
 			adapter = pygatt.backends.GATTToolBackend()
 			nukiBleConnectionReady = False
 			while nukiBleConnectionReady == False:
-				print "Starting BLE adapter..."
+				print("Starting BLE adapter...")
 				adapter.start()
-				print "Init Nuki BLE connection..."
+				print("Init Nuki BLE connection...")
 				try :
 					self.device = adapter.connect(self.macAddress)
 					nukiBleConnectionReady = True
 				except:
-					print "Unable to connect, retrying..."
-			print "Nuki BLE connection established"
+					print("Unable to connect, retrying...")
+			print("Nuki BLE connection established")
 	
 	def isNewNukiStateAvailable(self):
 		if self.device != None:
@@ -46,7 +46,7 @@ class Nuki():
 		try:
 			sock = bluez.hci_open_dev(dev_id)
 		except:
-			print "error accessing bluetooth device..."
+			print("error accessing bluetooth device...")
 			sys.exit(1)
 		blescan.hci_le_set_scan_parameters(sock)
 		blescan.hci_enable_le_scan(sock)
@@ -77,14 +77,14 @@ class Nuki():
 		self.config.remove_section(self.macAddress)
 		self.config.add_section(self.macAddress)
 		pairingHandle = self.device.get_handle('a92ee101-5501-11e4-916c-0800200c9a66')
-		print "Nuki Pairing UUID handle created: %04x" % pairingHandle
+		print("Nuki Pairing UUID handle created: %04x" % pairingHandle)
 		publicKeyReq = nuki_messages.Nuki_REQ('0003')
 		self.device.subscribe('a92ee101-5501-11e4-916c-0800200c9a66', self._handleCharWriteResponse)
 		publicKeyReqCommand = publicKeyReq.generate()
 		self._charWriteResponse = ""
-		print "Requesting Nuki Public Key using command: %s" % publicKeyReq.show()
+		print("Requesting Nuki Public Key using command: %s" % publicKeyReq.show())
 		self.device.char_write_handle(pairingHandle,publicKeyReqCommand,True,2)
-		print "Nuki Public key requested" 
+		print("Nuki Public key requested") 
 		commandParsed = self.parser.parse(self._charWriteResponse)
 		if self.parser.isNukiCommand(self._charWriteResponse) == False:
 			sys.exit("Error while requesting public key: %s" % commandParsed)
@@ -97,45 +97,45 @@ class Nuki():
 		self.config.set(self.macAddress,'ID',ID)
 		self.config.set(self.macAddress,'IDType',IDType)
 		self.config.set(self.macAddress,'Name',name)
-		print "Public key received: %s" % commandParsed.publicKey
+		print("Public key received: %s" % commandParsed.publicKey)
 		publicKeyPush = nuki_messages.Nuki_PUBLIC_KEY(publicKeyHex)
 		publicKeyPushCommand = publicKeyPush.generate()
-		print "Pushing Public Key using command: %s" % publicKeyPush.show()
+		print("Pushing Public Key using command: %s" % publicKeyPush.show())
 		self._charWriteResponse = ""
 		self.device.char_write_handle(pairingHandle,publicKeyPushCommand,True,5)
-		print "Public key pushed" 
+		print("Public key pushed") 
 		commandParsed = self.parser.parse(self._charWriteResponse)
 		if self.parser.isNukiCommand(self._charWriteResponse) == False:
 			sys.exit("Error while pushing public key: %s" % commandParsed)
 		if commandParsed.command != '0004':
 			sys.exit("Nuki returned unexpected response (expecting CHALLENGE): %s" % commandParsed.show())
-		print "Challenge received: %s" % commandParsed.nonce
+		print("Challenge received: %s" % commandParsed.nonce)
 		nonceNuki = commandParsed.nonce
 		authAuthenticator = nuki_messages.Nuki_AUTH_AUTHENTICATOR()
 		authAuthenticator.createPayload(nonceNuki, privateKeyHex, publicKeyHex, publicKeyNuki)
 		authAuthenticatorCommand = authAuthenticator.generate()
 		self._charWriteResponse = ""
 		self.device.char_write_handle(pairingHandle,authAuthenticatorCommand,True,5)
-		print "Authorization Authenticator sent: %s" % authAuthenticator.show() 
+		print("Authorization Authenticator sent: %s" % authAuthenticator.show()) 
 		commandParsed = self.parser.parse(self._charWriteResponse)
 		if self.parser.isNukiCommand(self._charWriteResponse) == False:
 			sys.exit("Error while sending Authorization Authenticator: %s" % commandParsed)
 		if commandParsed.command != '0004':
 			sys.exit("Nuki returned unexpected response (expecting CHALLENGE): %s" % commandParsed.show())
-		print "Challenge received: %s" % commandParsed.nonce
+		print("Challenge received: %s" % commandParsed.nonce)
 		nonceNuki = commandParsed.nonce
 		authData = nuki_messages.Nuki_AUTH_DATA()
 		authData.createPayload(publicKeyNuki, privateKeyHex, publicKeyHex, nonceNuki, ID, IDType, name)
 		authDataCommand = authData.generate()
 		self._charWriteResponse = ""
 		self.device.char_write_handle(pairingHandle,authDataCommand,True,7)
-		print "Authorization Data sent: %s" % authData.show() 
+		print("Authorization Data sent: %s" % authData.show()) 
 		commandParsed = self.parser.parse(self._charWriteResponse)
 		if self.parser.isNukiCommand(self._charWriteResponse) == False:
 			sys.exit("Error while sending Authorization Data: %s" % commandParsed)
 		if commandParsed.command != '0007':
 			sys.exit("Nuki returned unexpected response (expecting AUTH_ID): %s" % commandParsed.show())
-		print "Authorization ID received: %s" % commandParsed.show()
+		print("Authorization ID received: %s" % commandParsed.show())
 		nonceNuki = commandParsed.nonce
 		authorizationID = commandParsed.authID
 		self.config.set(self.macAddress,'authorizationID',authorizationID)
@@ -145,13 +145,13 @@ class Nuki():
 		authIDConfirmCommand = authIDConfirm.generate()
 		self._charWriteResponse = ""
 		self.device.char_write_handle(pairingHandle,authIDConfirmCommand,True,7)
-		print "Authorization ID Confirmation sent: %s" % authIDConfirm.show() 
+		print("Authorization ID Confirmation sent: %s" % authIDConfirm.show()) 
 		commandParsed = self.parser.parse(self._charWriteResponse)
 		if self.parser.isNukiCommand(self._charWriteResponse) == False:
 			sys.exit("Error while sending Authorization ID Confirmation: %s" % commandParsed)
 		if commandParsed.command != '000E':
 			sys.exit("Nuki returned unexpected response (expecting STATUS): %s" % commandParsed.show())
-		print "STATUS received: %s" % commandParsed.status
+		print("STATUS received: %s" % commandParsed.status)
 		with open('/home/pi/nuki/nuki.cfg', 'wb') as configfile:
 			self.config.write(configfile)
 		return commandParsed.status
@@ -166,14 +166,14 @@ class Nuki():
 		stateReqEncryptedCommand = stateReqEncrypted.generate()
 		self._charWriteResponse = ""
 		self.device.char_write_handle(keyturnerUSDIOHandle,stateReqEncryptedCommand,True,3)
-		print "Nuki State Request sent: %s\nresponse received: %s" % (stateReq.show(),self._charWriteResponse) 
+		print("Nuki State Request sent: %s\nresponse received: %s" % (stateReq.show(),self._charWriteResponse)) 
 		commandParsed = self.parser.decrypt(self._charWriteResponse,self.config.get(self.macAddress, 'publicKeyNuki'),self.config.get(self.macAddress, 'privateKeyHex'))[8:]
 		if self.parser.isNukiCommand(commandParsed) == False:
 			sys.exit("Error while requesting Nuki STATES: %s" % commandParsed)
 		commandParsed = self.parser.parse(commandParsed)
 		if commandParsed.command != '000C':
 			sys.exit("Nuki returned unexpected response (expecting Nuki STATES): %s" % commandParsed.show())
-		print "%s" % commandParsed.show()
+		print("%s" % commandParsed.show())
 		return commandParsed
 		
 	# method to perform a lock action on the Nuki Lock:
@@ -187,28 +187,28 @@ class Nuki():
 		challengeReqEncryptedCommand = challengeReqEncrypted.generate()
 		self._charWriteResponse = ""
 		self.device.char_write_handle(keyturnerUSDIOHandle,challengeReqEncryptedCommand,True,4)
-		print "Nuki CHALLENGE Request sent: %s" % challengeReq.show() 
+		print("Nuki CHALLENGE Request sent: %s" % challengeReq.show()) 
 		commandParsed = self.parser.decrypt(self._charWriteResponse,self.config.get(self.macAddress, 'publicKeyNuki'),self.config.get(self.macAddress, 'privateKeyHex'))[8:]
 		if self.parser.isNukiCommand(commandParsed) == False:
 			sys.exit("Error while requesting Nuki CHALLENGE: %s" % commandParsed)
 		commandParsed = self.parser.parse(commandParsed)
 		if commandParsed.command != '0004':
 			sys.exit("Nuki returned unexpected response (expecting Nuki CHALLENGE): %s" % commandParsed.show())
-		print "Challenge received: %s" % commandParsed.nonce
+		print("Challenge received: %s" % commandParsed.nonce)
 		lockActionReq = nuki_messages.Nuki_LOCK_ACTION()
 		lockActionReq.createPayload(self.config.getint(self.macAddress, 'ID'), lockAction, commandParsed.nonce)
 		lockActionReqEncrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.macAddress, 'authorizationID'), nukiCommand=lockActionReq, publicKey=self.config.get(self.macAddress, 'publicKeyNuki'), privateKey=self.config.get(self.macAddress, 'privateKeyHex'))
 		lockActionReqEncryptedCommand = lockActionReqEncrypted.generate()
 		self._charWriteResponse = ""
 		self.device.char_write_handle(keyturnerUSDIOHandle,lockActionReqEncryptedCommand,True,4)
-		print "Nuki Lock Action Request sent: %s" % lockActionReq.show() 
+		print("Nuki Lock Action Request sent: %s" % lockActionReq.show()) 
 		commandParsed = self.parser.decrypt(self._charWriteResponse,self.config.get(self.macAddress, 'publicKeyNuki'),self.config.get(self.macAddress, 'privateKeyHex'))[8:]
 		if self.parser.isNukiCommand(commandParsed) == False:
 			sys.exit("Error while requesting Nuki Lock Action: %s" % commandParsed)
 		commandParsed = self.parser.parse(commandParsed)
 		if commandParsed.command != '000C' and commandParsed.command != '000E':
 			sys.exit("Nuki returned unexpected response (expecting Nuki STATUS/STATES): %s" % commandParsed.show())
-		print "%s" % commandParsed.show()
+		print("%s" % commandParsed.show())
 	
 	# method to fetch the number of log entries from your Nuki Lock
 	#	-pinHex : a 2-byte hex string representation of the PIN code you have set on your Nuki Lock (default is 0000)
@@ -220,30 +220,30 @@ class Nuki():
 		challengeReqEncrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.macAddress, 'authorizationID'), nukiCommand=challengeReq, publicKey=self.config.get(self.macAddress, 'publicKeyNuki'), privateKey=self.config.get(self.macAddress, 'privateKeyHex'))
 		challengeReqEncryptedCommand = challengeReqEncrypted.generate()
 		self._charWriteResponse = ""
-		print "Requesting CHALLENGE: %s" % challengeReqEncrypted.generate("HEX")
+		print("Requesting CHALLENGE: %s" % challengeReqEncrypted.generate("HEX"))
 		self.device.char_write_handle(keyturnerUSDIOHandle,challengeReqEncryptedCommand,True,5)
-		print "Nuki CHALLENGE Request sent: %s" % challengeReq.show() 
+		print("Nuki CHALLENGE Request sent: %s" % challengeReq.show()) 
 		commandParsed = self.parser.decrypt(self._charWriteResponse,self.config.get(self.macAddress, 'publicKeyNuki'),self.config.get(self.macAddress, 'privateKeyHex'))[8:]
 		if self.parser.isNukiCommand(commandParsed) == False:
 			sys.exit("Error while requesting Nuki CHALLENGE: %s" % commandParsed)
 		commandParsed = self.parser.parse(commandParsed)
 		if commandParsed.command != '0004':
 			sys.exit("Nuki returned unexpected response (expecting Nuki CHALLENGE): %s" % commandParsed.show())
-		print "Challenge received: %s" % commandParsed.nonce
+		print("Challenge received: %s" % commandParsed.nonce)
 		logEntriesReq = nuki_messages.Nuki_LOG_ENTRIES_REQUEST()
 		logEntriesReq.createPayload(0, commandParsed.nonce, self.byteSwapper.swap(pinHex))
 		logEntriesReqEncrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.macAddress, 'authorizationID'), nukiCommand=logEntriesReq, publicKey=self.config.get(self.macAddress, 'publicKeyNuki'), privateKey=self.config.get(self.macAddress, 'privateKeyHex'))
 		logEntriesReqEncryptedCommand = logEntriesReqEncrypted.generate()
 		self._charWriteResponse = ""
 		self.device.char_write_handle(keyturnerUSDIOHandle,logEntriesReqEncryptedCommand,True,4)
-		print "Nuki Log Entries Request sent: %s" % logEntriesReq.show() 
+		print("Nuki Log Entries Request sent: %s" % logEntriesReq.show()) 
 		commandParsed = self.parser.decrypt(self._charWriteResponse,self.config.get(self.macAddress, 'publicKeyNuki'),self.config.get(self.macAddress, 'privateKeyHex'))[8:]
 		if self.parser.isNukiCommand(commandParsed) == False:
 			sys.exit("Error while requesting Nuki Log Entries: %s" % commandParsed)
 		commandParsed = self.parser.parse(commandParsed)
 		if commandParsed.command != '0026':
 			sys.exit("Nuki returned unexpected response (expecting Nuki LOG ENTRY): %s" % commandParsed.show())
-		print "%s" % commandParsed.show()
+		print("%s" % commandParsed.show())
 		return int(commandParsed.logCount, 16)
 	
 	# method to fetch the most recent log entries from your Nuki Lock
@@ -256,29 +256,29 @@ class Nuki():
 		challengeReq = nuki_messages.Nuki_REQ('0004')
 		challengeReqEncrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.macAddress, 'authorizationID'), nukiCommand=challengeReq, publicKey=self.config.get(self.macAddress, 'publicKeyNuki'), privateKey=self.config.get(self.macAddress, 'privateKeyHex'))
 		challengeReqEncryptedCommand = challengeReqEncrypted.generate()
-		print "Requesting CHALLENGE: %s" % challengeReqEncrypted.generate("HEX")
+		print("Requesting CHALLENGE: %s" % challengeReqEncrypted.generate("HEX"))
 		self._charWriteResponse = ""
 		self.device.char_write_handle(keyturnerUSDIOHandle,challengeReqEncryptedCommand,True,5)
-		print "Nuki CHALLENGE Request sent: %s" % challengeReq.show() 
+		print("Nuki CHALLENGE Request sent: %s" % challengeReq.show()) 
 		commandParsed = self.parser.decrypt(self._charWriteResponse,self.config.get(self.macAddress, 'publicKeyNuki'),self.config.get(self.macAddress, 'privateKeyHex'))[8:]
 		if self.parser.isNukiCommand(commandParsed) == False:
 			sys.exit("Error while requesting Nuki CHALLENGE: %s" % commandParsed)
 		commandParsed = self.parser.parse(commandParsed)
 		if commandParsed.command != '0004':
 			sys.exit("Nuki returned unexpected response (expecting Nuki CHALLENGE): %s" % commandParsed.show())
-		print "Challenge received: %s" % commandParsed.nonce
+		print("Challenge received: %s" % commandParsed.nonce)
 		logEntriesReq = nuki_messages.Nuki_LOG_ENTRIES_REQUEST()
 		logEntriesReq.createPayload(count, commandParsed.nonce, self.byteSwapper.swap(pinHex))
 		logEntriesReqEncrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.macAddress, 'authorizationID'), nukiCommand=logEntriesReq, publicKey=self.config.get(self.macAddress, 'publicKeyNuki'), privateKey=self.config.get(self.macAddress, 'privateKeyHex'))
 		logEntriesReqEncryptedCommand = logEntriesReqEncrypted.generate()
 		self._charWriteResponse = ""
 		self.device.char_write_handle(keyturnerUSDIOHandle,logEntriesReqEncryptedCommand,True,6)
-		print "Nuki Log Entries Request sent: %s" % logEntriesReq.show()
+		print("Nuki Log Entries Request sent: %s" % logEntriesReq.show())
 		messages = self.parser.splitEncryptedMessages(self._charWriteResponse)
-		print "Received %d messages" % len(messages)
+		print("Received %d messages" % len(messages))
 		logMessages = []
 		for message in messages:
-			print "Decrypting message %s" % message
+			print("Decrypting message %s" % message)
 			try:
 				commandParsed = self.parser.decrypt(message,self.config.get(self.macAddress, 'publicKeyNuki'),self.config.get(self.macAddress, 'privateKeyHex'))[8:]
 				if self.parser.isNukiCommand(commandParsed) == False:
@@ -286,10 +286,10 @@ class Nuki():
 				commandParsed = self.parser.parse(commandParsed)
 				if commandParsed.command != '0024' and commandParsed.command != '0026' and commandParsed.command != '000E':
 					sys.exit("Nuki returned unexpected response (expecting Nuki LOG ENTRY): %s" % commandParsed.show())
-				print "%s" % commandParsed.show()
+				print("%s" % commandParsed.show())
 				if commandParsed.command == '0024':
 					logMessages.append(commandParsed)
 			except:
-				print "Unable to decrypt message"
+				print("Unable to decrypt message")
 		return logMessages
 		

@@ -431,7 +431,7 @@ class NukiCommandParser:
 			command = self.byteSwapper.swap(commandString[:4]).upper()
 			payload = commandString[4:-4]
 			crc = self.byteSwapper.swap(commandString[-4:])
-			print "command = %s, payload = %s, crc = %s" % (command,payload,crc)
+			print("command = %s, payload = %s, crc = %s" % (command,payload,crc))
 			if command == '0001':
 				return Nuki_REQ(payload)
 			elif command == '0003':
@@ -495,7 +495,7 @@ if __name__ == "__main__":
 	commandParsed = parser.parse(commandString)
 	if parser.isNukiCommand(commandString):
 		commandShow = commandParsed.show()
-		print commandShow
+		print(commandShow)
 	else:
-		print commandParsed
-	print "Done"
+		print(commandParsed)
+	print("Done")
