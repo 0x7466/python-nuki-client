@@ -20,7 +20,7 @@ class Nuki():
     self.byteSwapper = ByteSwapper()
     self.macAddress = macAddress
     self.config = configparser.RawConfigParser()
-    self.config.read('/home/pi/nuki/nuki.cfg')
+    self.config.read('./nuki.cfg')
     self.device = None
   
   def _makeBLEConnection(self):
@@ -155,7 +155,7 @@ class Nuki():
     if commandParsed.command != '000E':
       sys.exit("Nuki returned unexpected response (expecting STATUS): %s" % commandParsed.show())
     print("STATUS received: %s" % commandParsed.status)
-    with open('/home/pi/nuki/nuki.cfg', 'wb') as configfile:
+    with open('./nuki.cfg', 'at') as configfile:
       self.config.write(configfile)
     return commandParsed.status
   

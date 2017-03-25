@@ -1,5 +1,3 @@
-
-
 import re
 import logging
 import platform
@@ -7,6 +5,7 @@ import sys
 import time
 import threading
 import subprocess
+import binascii
 from uuid import UUID
 from contextlib import contextmanager
 try:
@@ -403,7 +402,7 @@ class GATTToolBackend(BLEBackend):
     msg = event["after"]
     hex_handle, _, hex_values = msg.strip().split(None, 5)[3:]
     handle = int(hex_handle, 16)
-    values = bytearray(hex_values.replace(" ", "").decode("hex"))
+    values = bytearray(binascii.unhexlify(hex_values.decode('utf-8').replace(' ', '')))
     if self._connected_device is not None:
       self._connected_device.receive_notification(handle, values)
 
