@@ -28,13 +28,13 @@ Replace the `/usr/local/lib/python2.7/dist-packages/pygatt/backends/gatttool/gat
 ### 8. Install Bluetooth
 `sudo apt install bluetooth libbluetooth-dev`
 
-### 8. Install pybluez
+### 9. Install pybluez
 `pip3 install pybluez`
 
-### 9. Install pexpect
+### 10. Install pexpect
 `pip3 install pexpect`
 
-### 10. That's all!
+### That's all!
 You are now ready to use the library in python!
 
 ## Example usage
