@@ -1,4 +1,4 @@
-# nukiPyBridge
+# Nuki client for Python 3
 
 This python library let's you talk with Nuki lock (https://nuki.io/en/)
 
@@ -14,22 +14,25 @@ Install a BLE-compatible USB dongle (or use the built-in bluetooth stack if avai
 You'll get more infos [here](https://learn.adafruit.com/install-bluez-on-the-raspberry-pi/installation)
 
 ### 4. Install pygatt
-`$ pip install pygatt`
+`$ pip3 install pygatt`
 
 ### 5. Some hacks
 Replace the `/usr/local/lib/python2.7/dist-packages/pygatt/backends/gatttool/gatttool.py` file with the file from this repository.
 
 ### 6. Install nacl
-`$ pip install pynacl`
+`$ pip3 install pynacl`
 
 ### 7. Install crc16
-`pip install crc16`
+`pip3 install crc16`
+
+### 8. Install Bluetooth
+`sudo apt install bluetooth libbluetooth-dev`
 
 ### 8. Install pybluez
-`pip install pybluez`
+`pip3 install pybluez`
 
 ### 9. Install pexpect
-`pip install pexpect`
+`pip3 install pexpect`
 
 ### 10. That's all!
 You are now ready to use the library in python!
@@ -41,12 +44,13 @@ Before you will be able to send commands to the Nuki lock using the library, you
 import nuki_messages
 import nuki
 from nacl.public import PrivateKey
+import binascii
 
 nukiMacAddress = "00:00:00:00:00:01"
 # generate the private key which must be kept secret
 keypair = PrivateKey.generate()
-myPublicKeyHex = keypair.public_key.__bytes__().encode("hex")
-myPrivateKeyHex = keypair.__bytes__().encode("hex")
+myPublicKeyHex = binascii.hexlify(keypair.public_key.__bytes__())
+myPrivateKeyHex = binascii.hexlify(keypair.__bytes__())
 myID = 50
 # id-type = 00 (app), 01 (bridge) or 02 (fob)
 # take 01 (bridge) if you want to make sure that the 'new state available'-flag is cleared on the Nuki if you read it out the state using this library
@@ -76,10 +80,10 @@ nuki = nuki.Nuki(nukiMacAddress)
 nuki.readLockState()
 nuki.lockAction("UNLOCK")
 logs = nuki.getLogEntries(10,Pin)
-print "received %d log entries" % len(logs)
+print("received {} log entries".format(len(logs)))
 
 available = nuki.isNewNukiStateAvailable()
-print "New state available: %d" % available
+print("New state available: {}".format(available))
 
 ```
 **REMARK** the method ```isNewNukiStateAvailable()``` only works if you run your python script as root (sudo). All the other methods do not require root privileges
