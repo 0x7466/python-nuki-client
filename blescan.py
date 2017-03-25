@@ -146,19 +146,18 @@ def parse_events(sock, loop_count=100):
         num_reports = struct.unpack("B", pkt[0])[0]
         report_pkt_offset = 0
         for i in range(0, num_reports):
-    
-      if (DEBUG == True):
-        print("-------------")
-        print("\tUDID: ", printpacket(pkt[report_pkt_offset -22: report_pkt_offset - 6]))
-        print("\tMAJOR: ", printpacket(pkt[report_pkt_offset -6: report_pkt_offset - 4]))
-        print("\tMINOR: ", printpacket(pkt[report_pkt_offset -4: report_pkt_offset - 2]))
-        print("\tMAC address: ", packed_bdaddr_to_string(pkt[report_pkt_offset + 3:report_pkt_offset + 9]))
-        # commented out - don't know what this byte is.  It's NOT TXPower
-        txpower, = struct.unpack("b", pkt[report_pkt_offset -2])
-        print("\t(Unknown):", txpower)
+          if (DEBUG == True):
+            print("-------------")
+            print("\tUDID: ", printpacket(pkt[report_pkt_offset -22: report_pkt_offset - 6]))
+            print("\tMAJOR: ", printpacket(pkt[report_pkt_offset -6: report_pkt_offset - 4]))
+            print("\tMINOR: ", printpacket(pkt[report_pkt_offset -4: report_pkt_offset - 2]))
+            print("\tMAC address: ", packed_bdaddr_to_string(pkt[report_pkt_offset + 3:report_pkt_offset + 9]))
+            # commented out - don't know what this byte is.  It's NOT TXPower
+            txpower, = struct.unpack("b", pkt[report_pkt_offset -2])
+            print("\t(Unknown):", txpower)
 
-        rssi, = struct.unpack("b", pkt[report_pkt_offset -1])
-        print("\tRSSI:", rssi)
+            rssi, = struct.unpack("b", pkt[report_pkt_offset -1])
+            print("\tRSSI:", rssi)
       
       # build the return string
       Adstring = packed_bdaddr_to_string(pkt[report_pkt_offset + 3:report_pkt_offset + 9])
