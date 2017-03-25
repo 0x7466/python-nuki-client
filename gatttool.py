@@ -426,18 +426,19 @@ class GATTToolBackend(BLEBackend):
       self._receiver.clear("char_written")
       self._receiver.clear("indication")
       self.sendline(cmd)
-    try:
+
+      try:
         self._receiver.wait("char_written", timeout=2)
         waitingForIndications = True
         while waitingForIndications == True:
-        try:
-          self._receiver.wait("indication", timeout=2)
-          self._receiver.clear("indication")
-        except NotificationTimeout:
-          waitingForIndications = False 
-    except NotificationTimeout:
-      log.error("No response received", exc_info=True)
-      raise
+          try:
+            self._receiver.wait("indication", timeout=2)
+            self._receiver.clear("indication")
+          except NotificationTimeout:
+            waitingForIndications = False 
+      except NotificationTimeout:
+        log.error("No response received", exc_info=True)
+        raise
     else:
       self.sendline(cmd)
 
