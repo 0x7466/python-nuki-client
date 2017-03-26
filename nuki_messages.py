@@ -8,15 +8,16 @@ from nacl.bindings.crypto_box import crypto_box_beforenm
 import hmac
 import hashlib
 import binascii
+from utils import *
 
 class Nuki_EncryptedCommand(object):
-  def __init__(self, authID='', nukiCommand=None, nonce='', publicKey='', privateKey=''):
+  def __init__(self, authID='', nukiCommand=None, nonce=None, publicKey='', privateKey=''):
     self.byteSwapper = ByteSwapper()
     self.crcCalculator = CrcCalculator()
     self.authID = authID
     self.command = nukiCommand
     self.nonce = nonce
-    if nonce == '':
+    if nonce is None:
       self.nonce = binascii.hexlify(nacl.utils.random(24))
     self.publicKey = publicKey
     self.privateKey = privateKey
@@ -25,11 +26,14 @@ class Nuki_EncryptedCommand(object):
     unencrypted = self.authID + self.command.generate(format='HEX')[:-4]
     crc = self.byteSwapper.swap(self.crcCalculator.crc_ccitt(unencrypted))
     unencrypted = unencrypted + crc
-    sharedKey = binascii.hexlify(crypto_box_beforenm(bytes(bytearray.fromhex(self.publicKey)),bytes(bytearray.fromhex(self.privateKey))))
-    box = nacl.secret.SecretBox(bytes(bytearray.fromhex(sharedKey)))
-    encrypted = box.encrypt(bytes(bytearray.fromhex(unencrypted)), binascii.hexlify(bytes(bytearray.fromhex(self.nonce))))[48:]
+    
+    sharedKey = binascii.hexlify(crypto_box_beforenm(binascii.unhexlify(self.publicKey), binascii.unhexlify(self.privateKey)))
+    box = nacl.secret.SecretBox(binascii.unhexlify(sharedKey))
+
+    encrypted = binascii.hexlify(box.encrypt(binascii.unhexlify(unencrypted), binascii.unhexlify(self.nonce)))[48:]
     length = self.byteSwapper.swap("%04X" % (len(encrypted)/2))
-    msg = self.nonce + self.authID + length + encrypted
+    
+    msg = to_str(self.nonce) + to_str(self.authID) + to_str(length) + to_str(encrypted)
     if format == 'BYTE_ARRAY':
       return array.array('B', binascii.unhexlify(msg))
     else:
@@ -44,10 +48,7 @@ class Nuki_Command(object):
     self.payload = payload
 
   def generate(self, format='BYTE_ARRAY'):
-    payload = self.payload
-    if isinstance(payload, bytes):
-      payload = payload.decode('utf-8')
-    msg = self.byteSwapper.swap(self.command) + payload
+    msg = self.byteSwapper.swap(self.command) + to_str(self.payload)
     crc = self.byteSwapper.swap(self.crcCalculator.crc_ccitt(msg))
     msg = msg + crc
     if format == 'BYTE_ARRAY':
@@ -114,15 +115,8 @@ class Nuki_AUTH_AUTHENTICATOR(Nuki_Command):
       
   def createPayload(self, nonceNuki, privateKeyAuth, publicKeyAuth, publicKeyNuki):
     sharedKey = binascii.hexlify(crypto_box_beforenm(bytes(bytearray.fromhex(publicKeyNuki)),bytes(bytearray.fromhex(privateKeyAuth.decode('utf-8'))))).decode('utf-8')
-    
-    if isinstance(publicKeyAuth, bytes):
-      publicKeyAuth = publicKeyAuth.decode('utf-8')
-    if isinstance(publicKeyNuki, bytes):
-      publicKeyNuki = publicKeyNuki.decode('utf-8')
-    if isinstance(privateKeyAuth, bytes):
-      privateKeyAuth = privateKeyAuth.decode('utf-8')
 
-    valueR = publicKeyAuth + publicKeyNuki + nonceNuki
+    valueR = to_str(publicKeyAuth) + to_str(publicKeyNuki) + to_str(nonceNuki)
     self.authenticator = hmac.new(bytearray.fromhex(sharedKey), msg=bytearray.fromhex(valueR), digestmod=hashlib.sha256).hexdigest()
     self.payload = self.authenticator
     
@@ -150,34 +144,11 @@ class Nuki_AUTH_DATA(Nuki_Command):
     self.idType = idType
     self.name = binascii.hexlify(name.encode()).ljust(64, b'0')
     self.nonce = binascii.hexlify(nacl.utils.random(32))
-    
-    if isinstance(publicKeyNuki, bytes):
-      publicKeyNuki = publicKeyNuki.decode('utf-8')
-    elif isinstance(publicKeyNuki, bytearray):
-      publicKeyNuki = publicKeyNuki.decode('latin-1')
 
-    if isinstance(publicKeyAuth, bytes):
-      publicKeyAuth = publicKeyAuth.decode('utf-8')
-    elif isinstance(publicKeyAuth, bytearray):
-      publicKeyAuth = publicKeyAuth.decode('latin-1')
-
-    if isinstance(privateKeyAuth, bytes):
-      privateKeyAuth = privateKeyAuth.decode('utf-8')
-    elif isinstance(privateKeyAuth, bytearray):
-      privateKeyAuth = privateKeyAuth.decode('latin-1')
-
-    name = self.name
-    if isinstance(name, bytes):
-      name = name.decode('utf-8')
-
-    nonce = self.nonce
-    if isinstance(nonce, bytes):
-      nonce = nonce.decode('utf-8')
-    
-    sharedKey = binascii.hexlify(crypto_box_beforenm(bytes(bytearray.fromhex(publicKeyNuki)),bytes(bytearray.fromhex(privateKeyAuth)))).decode('utf-8')
-    valueR = self.idType + self.appID + name + nonce + nonceNuki
-    self.authenticator = hmac.new(bytearray.fromhex(sharedKey), msg=bytearray.fromhex(valueR), digestmod=hashlib.sha256).hexdigest()
-    self.payload = self.authenticator + self.idType + self.appID + name + nonce
+    sharedKey = binascii.hexlify(crypto_box_beforenm(bytes(bytearray.fromhex(to_str(publicKeyNuki))),bytes(bytearray.fromhex(to_str(privateKeyAuth)))))
+    valueR = to_str(self.idType) + to_str(self.appID) + to_str(self.name) + to_str(self.nonce) + to_str(nonceNuki)
+    self.authenticator = hmac.new(bytearray.fromhex(to_str(sharedKey)), msg=bytearray.fromhex(valueR), digestmod=hashlib.sha256).hexdigest()
+    self.payload = to_str(self.authenticator) + to_str(self.idType) + to_str(self.appID) + to_str(self.name) + to_str(self.nonce)
     
   def show(self):
     return "Nuki_AUTH_DATA\n\tAuthenticator: %s\n\tID Type: %s\n\tAuthenticator ID: %s\n\tName: %s\n\tNonce: %s" % (self.authenticator, self.idType, self.appID, binascii.unhexlify(self.name), self.nonce)
@@ -214,24 +185,9 @@ class Nuki_AUTH_ID_CONFIRM(Nuki_Command):
   def createPayload(self, publicKeyNuki, privateKeyAuth, publicKeyAuth, nonceNuki, authID):
     self.authID = ("%x" % authID).rjust(8,'0')
 
-    if isinstance(publicKeyNuki, bytes):
-      publicKeyNuki = publicKeyNuki.decode('utf-8')
-    elif isinstance(publicKeyNuki, bytearray):
-      publicKeyNuki = publicKeyNuki.decode('latin-1')
-
-    if isinstance(publicKeyAuth, bytes):
-      publicKeyAuth = publicKeyAuth.decode('utf-8')
-    elif isinstance(publicKeyAuth, bytearray):
-      publicKeyAuth = publicKeyAuth.decode('latin-1')
-
-    if isinstance(privateKeyAuth, bytes):
-      privateKeyAuth = privateKeyAuth.decode('utf-8')
-    elif isinstance(privateKeyAuth, bytearray):
-      privateKeyAuth = privateKeyAuth.decode('latin-1')
-
-    sharedKey = binascii.hexlify(crypto_box_beforenm(bytes(bytearray.fromhex(publicKeyNuki)),bytes(bytearray.fromhex(privateKeyAuth)))).decode('utf-8')
-    valueR = self.authID + nonceNuki
-    self.authenticator = hmac.new(bytearray.fromhex(sharedKey), msg=bytearray.fromhex(valueR), digestmod=hashlib.sha256).hexdigest()
+    sharedKey = binascii.hexlify(crypto_box_beforenm(bytes(bytearray.fromhex(to_str(publicKeyNuki))),bytes(bytearray.fromhex(to_str(privateKeyAuth)))))
+    valueR = to_str(self.authID) + to_str(nonceNuki)
+    self.authenticator = hmac.new(bytearray.fromhex(to_str(sharedKey)), msg=bytearray.fromhex(valueR), digestmod=hashlib.sha256).hexdigest()
     self.payload = self.authenticator + self.authID
 
 class Nuki_STATUS(Nuki_Command):
@@ -345,7 +301,7 @@ class Nuki_LOCK_ACTION(Nuki_Command):
       self.lockAction = '83'
     else:
       sys.exit("Invalid Lock Action request: %s (should be one of these: 'UNLOCK', 'LOCK', 'UNLATCH', 'LOCKNGO', 'LOCKNGO_UNLATCH', 'FOB_ACTION_1', 'FOB_ACTION_2' or 'FOB_ACTION_3')'" % lockAction)
-    self.payload = self.lockAction + self.appID + self.flags + self.nonce
+    self.payload = to_str(self.lockAction) + to_str(self.appID) + to_str(self.flags) + to_str(self.nonce)
   
 class Nuki_LOG_ENTRIES_REQUEST(Nuki_Command):
   def __init__(self, payload="N/A"):
@@ -372,7 +328,7 @@ class Nuki_LOG_ENTRIES_REQUEST(Nuki_Command):
     self.count = self.byteSwapper.swap("%04x" % count)
     self.nonce = nonce
     self.pin = pin
-    self.payload = self.mostRecent + self.startIndex + self.count + self.nonce + self.pin
+    self.payload = to_str(self.mostRecent) + to_str(self.startIndex) + to_str(self.count) + to_str(self.nonce) + to_str(self.pin)
 
 class Nuki_LOG_ENTRY_COUNT(Nuki_Command):
   def __init__(self, payload="N/A"):
@@ -526,19 +482,19 @@ class NukiCommandParser:
     return msgList
   
   def decrypt(self, msg, publicKey, privateKey):
-    #print "msg: %s" % msg
+    # print("msg: %s" % msg)
     nonce = msg[:48]
-    #print "nonce: %s" % nonce
+    # print("nonce: %s" % nonce)
     authID = msg[48:56]
-    #print "authID: %s" % authID
+    # print("authID: %s" % authID)
     length = int(self.byteSwapper.swap(msg[56:60]), 16)
-    #print "length: %d" % length
+    # print("length: %d" % length)
     encrypted = nonce + msg[60:60+(length*2)]
-    #print "encrypted: %s" % encrypted
-    sharedKey = binascii.hexlify(crypto_box_beforenm(bytes(bytearray.fromhex(publicKey)),bytes(bytearray.fromhex(privateKey))))
-    box = nacl.secret.SecretBox(bytes(bytearray.fromhex(sharedKey)))
-    decrypted = box.decrypt(binascii.hexlify(bytes(bytearray.fromhex(encrypted))))
-    #print "decrypted: %s" % decrypted
+    # print("encrypted: %s" % encrypted)
+    sharedKey = binascii.hexlify(crypto_box_beforenm(binascii.unhexlify(publicKey), binascii.unhexlify(privateKey)))
+    box = nacl.secret.SecretBox(binascii.unhexlify(sharedKey))
+    decrypted = binascii.hexlify(box.decrypt(binascii.unhexlify(encrypted)))
+    print("decrypted: %s" % decrypted)
     return decrypted
     
 if __name__ == "__main__":
