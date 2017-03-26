@@ -76,7 +76,7 @@ import nuki_messages
 import nuki as _nuki
 
 nuki_mac_address = "00:00:00:00:00:01"
-pin = "%04x" % 0000
+pin = 0000
 
 nuki = _nuki.Nuki(nuki_mac_address)
 

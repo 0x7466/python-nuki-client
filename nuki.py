@@ -319,12 +319,14 @@ class Nuki():
     print(command_parsed.show())
   
 
-  def get_log_entries_count(self, pin_hex):
+  def get_log_entries_count(self, pin):
     """
     Fetches the count of the log entries at the KT.
 
-    :param pin_hex: The 2-byte PIN code (hex) set at the KT. (Default: 0000)
+    :param pin: The 2-byte PIN code set at the KT. (Default: 0000)
     """
+    pin_hex = '%04x' % pin
+
     self._make_ble_connection()
     key_turner_usd_io_handle = self.device.get_handle("a92ee202-5501-11e4-916c-0800200c9a66")
     self.device.subscribe('a92ee202-5501-11e4-916c-0800200c9a66', self._handle_char_write_response)
@@ -375,14 +377,16 @@ class Nuki():
     return int(command_parsed.logCount, 16)
   
 
-  def get_log_entries(self, count, pin_hex):
+  def get_log_entries(self, count, pin):
     """
     Fetches log entries form the KT.
     Starts with the most recent one.
 
     :param count: The number of entries which should be fetched.
-    :param pin_hex: The 2-byte PIN code (hex) set at the KT. (Default: 0000)
+    :param pin: The 2-byte PIN code set at the KT. (Default: 0000)
     """
+    pin_hex = '%04x' % pin
+
     self._make_ble_connection()
     key_turner_usd_io_handle = self.device.get_handle("a92ee202-5501-11e4-916c-0800200c9a66")
     self.device.subscribe('a92ee202-5501-11e4-916c-0800200c9a66', self._handle_char_write_response)
