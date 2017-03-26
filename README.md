@@ -23,16 +23,16 @@ Replace the `/usr/local/lib/python2.7/dist-packages/pygatt/backends/gatttool/gat
 `$ pip3 install pynacl`
 
 ### 7. Install crc16
-`pip3 install crc16`
+`$ pip3 install crc16`
 
 ### 8. Install Bluetooth
-`sudo apt install bluetooth libbluetooth-dev`
+`$ sudo apt install bluetooth libbluetooth-dev`
 
 ### 9. Install pybluez
-`pip3 install pybluez`
+`$ pip3 install pybluez`
 
 ### 10. Install pexpect
-`pip3 install pexpect`
+`$ pip3 install pexpect`
 
 ### That's all!
 You are now ready to use the library in python!
