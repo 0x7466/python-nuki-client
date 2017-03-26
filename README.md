@@ -42,7 +42,6 @@ You are now ready to use the library in python!
 Before you will be able to send commands to the Nuki lock using the library, you must first authenticate (once!) yourself with a self-generated public/private keypair (using NaCl):
 
 ```python
-import nuki_messages
 import nuki as _nuki
 from nacl.public import PrivateKey
 import binascii
@@ -72,7 +71,6 @@ nuki.authenticate_user(public_key_hex, private_key_hex, id, id_type, name)
 Once you are authenticated (and the nuki.cfg file is created on your system), you can use the library to send command to your Nuki lock:
 
 ```python
-import nuki_messages
 import nuki as _nuki
 
 nuki_mac_address = "00:00:00:00:00:01"
