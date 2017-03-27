@@ -330,6 +330,28 @@ class Nuki_LOG_ENTRIES_REQUEST(Nuki_Command):
     self.pin = pin
     self.payload = to_str(self.mostRecent) + to_str(self.startIndex) + to_str(self.count) + to_str(self.nonce) + to_str(self.pin)
 
+
+class NukiCalibrationRequest(Nuki_Command):
+  def __init__(self, payload='N/A'):
+    super(self.__class__, self).__init__(payload)
+    self.command = '001A'
+    self.nonce = None
+    self.pin = None
+    self.payload = payload
+    if self.payload != "N/A":
+      self.nonce = payload[:64]
+      self.pin = payload[64:]
+
+  def show(self):
+    return 'Nuki Calibration Request sent'
+
+  def create_payload(self, nonce, pin):
+    self.nonce = nonce
+    self.pin = pin
+    self.payload = to_str(self.nonce) + to_str(self.pin)
+    return self.payload
+
+
 class Nuki_LOG_ENTRY_COUNT(Nuki_Command):
   def __init__(self, payload="N/A"):
     super(self.__class__, self).__init__(payload)
@@ -411,7 +433,7 @@ class Nuki_LOG_ENTRY(Nuki_Command):
 class NukiCommandParser:
   def __init__(self):
     self.byteSwapper = ByteSwapper()
-    self.commandList = ['0001','0003','0004','0005','0006','0007','000C','001E','000E','0023','0024','0026','0012']
+    self.commandList = ['0001','0003','0004','0005','0006','0007','000C','001E','000E','0023','0024','0026','001A','0012']
 
   def isNukiCommand(self, commandString):
     command = self.byteSwapper.swap(commandString[:4])
@@ -431,6 +453,7 @@ class NukiCommandParser:
       '0023': 'Nuki_LOCK_ENTRIES_REQUEST',
       '0024': 'Nuki_LOG_ENTRY',
       '0026': 'Nuki_LOG_ENTRY_COUNT',
+      '001A': 'NukiRequestCalibration',
       '0012': 'Nuki_ERROR',
     }.get(command.upper(), 'UNKNOWN')    # UNKNOWN is default if command not found
   
@@ -464,6 +487,8 @@ class NukiCommandParser:
         return Nuki_LOG_ENTRY(payload)
       elif command == '0026':
         return Nuki_LOG_ENTRY_COUNT(payload)
+      elif command == '001A':
+        return NukiCalibrationRequest(payload)
       elif command == '0012':
         return Nuki_ERROR(payload)
     else:

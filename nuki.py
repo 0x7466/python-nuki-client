@@ -317,9 +317,59 @@ class Nuki():
       sys.exit("Nuki returned unexpected response (expecting Nuki STATUS/STATES): %s" % command_parsed.show())
 
     print(command_parsed.show())
-  
 
-  def get_log_entries_count(self, pin):
+
+  def request_calibration(self, pin=0000):
+    """
+    Requests calibration of the KT.
+
+    :param pin: The 2-byte PIN code set at the KT. (Default: 0000)
+    """
+    pin_hex = '%04x' % pin
+
+    self._make_ble_connection()
+    key_turner_usd_io_handle = self.device.get_handle("a92ee202-5501-11e4-916c-0800200c9a66")
+    self.device.subscribe('a92ee202-5501-11e4-916c-0800200c9a66', self._handle_char_write_response)
+
+    challenge_req = nuki_messages.Nuki_REQ('0004')
+    challenge_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=challenge_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    challenge_req_encrypted_command = challenge_req_encrypted.generate()
+
+    self._char_write_response = ""
+
+    print("Requesting CHALLENGE: %s" % challenge_req_encrypted.generate("HEX"))
+    self.device.char_write_handle(key_turner_usd_io_handle, challenge_req_encrypted_command, True, 5)
+    print("Nuki CHALLENGE Request sent: %s" % challenge_req.show())
+
+    command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
+
+    if self.parser.isNukiCommand(command_parsed) == False:
+      sys.exit("Error while requesting Nuki CHALLENGE: %s" % command_parsed)
+
+    command_parsed = self.parser.parse(command_parsed)
+
+    if command_parsed.command != '0004':
+      sys.exit("Nuki returned unexpected response (expecting Nuki CHALLENGE): %s" % command_parsed.show())
+
+    print("Challenge received: %s" % command_parsed.nonce)
+
+    calibration_req = nuki_messages.NukiCalibrationRequest()
+    calibration_req.create_payload(command_parsed.nonce, self.byte_swapper.swap(pin_hex))
+    calibration_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=calibration_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    calibration_req_encrypted_command = calibration_req_encrypted.generate()
+
+    self._char_write_response = ""
+
+    self.device.char_write_handle(key_turner_usd_io_handle, calibration_req_encrypted_command, True, 5)
+    print("Nuki Calibration Request sent: %s" % calibration_req.show())
+
+    command_parsed = self.parser.decrypt(self._char_write_response, self.config.get(self.mac_address, 'publicKeyNuki'), self.config.get(self.mac_address, 'privateKeyHex'))[8:]
+
+    print(command_parsed)
+    return command_parsed
+
+
+  def get_log_entries_count(self, pin=0000):
     """
     Fetches the count of the log entries at the KT.
 
@@ -377,7 +427,7 @@ class Nuki():
     return int(command_parsed.logCount, 16)
   
 
-  def get_log_entries(self, count, pin):
+  def get_log_entries(self, count, pin=0000):
     """
     Fetches log entries form the KT.
     Starts with the most recent one.

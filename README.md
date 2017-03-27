@@ -88,6 +88,9 @@ nuki.lock_action("UNLOCK")
 logs = nuki.get_log_entries(10, pin)
 print("received {} log entries".format(len(logs)))
 
+# Requests calibration
+nuki.request_calibration(pin)
+
 # Checks if a new state is available
 available = nuki.is_new_nuki_state_available()
 print("New state available: {}".format(available))
