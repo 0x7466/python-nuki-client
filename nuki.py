@@ -11,6 +11,7 @@ import blescan
 import bluetooth._bluetooth as bluez
 from utils import *
 
+
 class Nuki(): 
   def __init__(self, mac_address):
     """
@@ -18,7 +19,7 @@ class Nuki():
     :param mac_address: The MAC address of the KT.
     """
     self._char_write_response = ""
-    self.parser = nuki_messages.NukiCommandParser()
+    self.parser = nuki_messages.CommandParser()
     self.crc_calculator = CrcCalculator()
     self.byte_swapper = ByteSwapper()
     self.mac_address = mac_address
@@ -32,11 +33,11 @@ class Nuki():
     Establishes the BLE connection to the KT.
     Private method.
     """
-    if self.device == None:
+    if self.device is None:
       adapter = pygatt.backends.GATTToolBackend()
       nuki_ble_connection_ready = False
 
-      while nuki_ble_connection_ready == False:
+      while nuki_ble_connection_ready:
         print("Starting BLE adapter...")
         adapter.start()
         print("Init Nuki BLE connection...")
@@ -106,7 +107,7 @@ class Nuki():
     pairing_handle = self.device.get_handle('a92ee101-5501-11e4-916c-0800200c9a66')
     print("Nuki Pairing UUid handle created: %04x" % pairing_handle)
 
-    public_key_req = nuki_messages.Nuki_REQ('0003')
+    public_key_req = nuki_messages.Request('0003')
     self.device.subscribe('a92ee101-5501-11e4-916c-0800200c9a66', self._handle_char_write_response)
 
     public_key_reqCommand = public_key_req.generate()
@@ -135,7 +136,7 @@ class Nuki():
     self.config.set(self.mac_address, 'name', to_str(name))
 
     print("Public key received: %s" % command_parsed.publicKey)
-    public_key_push = nuki_messages.Nuki_PUBLIC_KEY(public_key_hex)
+    public_key_push = nuki_messages.PublicKey(public_key_hex)
     public_key_push_command = public_key_push.generate()
     print("Pushing Public Key using command: %s" % public_key_push.show())
 
@@ -155,7 +156,7 @@ class Nuki():
     print("Challenge received: %s" % command_parsed.nonce)
     nonce_nuki = command_parsed.nonce
 
-    auth_authenticator = nuki_messages.Nuki_AUTH_AUTHENTICATOR()
+    auth_authenticator = nuki_messages.AuthAuthenticator()
     auth_authenticator.createPayload(nonce_nuki, private_key_hex, public_key_hex, public_key_nuki)
     auth_authenticator_command = auth_authenticator.generate()
 
@@ -175,7 +176,7 @@ class Nuki():
     print("Challenge received: %s" % command_parsed.nonce)
     nonce_nuki = command_parsed.nonce
 
-    auth_data = nuki_messages.Nuki_AUTH_DATA()
+    auth_data = nuki_messages.AuthData()
     auth_data.createPayload(public_key_nuki, private_key_hex, public_key_hex, nonce_nuki, id, id_type, name)
     auth_data_command = auth_data.generate()
 
@@ -199,7 +200,7 @@ class Nuki():
     self.config.set(self.mac_address, 'authorizationID', to_str(authorization_id))
 
     authid = int(command_parsed.authID, 16)
-    authid_confirm = nuki_messages.Nuki_AUTH_ID_CONFIRM()
+    authid_confirm = nuki_messages.AuthIDConfirm()
     authid_confirm.createPayload(public_key_nuki, private_key_hex, public_key_hex, nonce_nuki, authid)
     authid_confirm_command = authid_confirm.generate()
 
@@ -231,8 +232,8 @@ class Nuki():
     key_turner_usd_io_handle = self.device.get_handle("a92ee202-5501-11e4-916c-0800200c9a66")
     self.device.subscribe('a92ee202-5501-11e4-916c-0800200c9a66', self._handle_char_write_response)
 
-    state_req = nuki_messages.Nuki_REQ(payload='000C')
-    state_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=state_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    state_req = nuki_messages.Request(payload='000C')
+    state_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=state_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     state_req_encrypted_command = state_req_encrypted.generate()
 
     self._char_write_response = ""
@@ -274,8 +275,8 @@ class Nuki():
     key_turner_usd_io_handle = self.device.get_handle("a92ee202-5501-11e4-916c-0800200c9a66")
     self.device.subscribe('a92ee202-5501-11e4-916c-0800200c9a66', self._handle_char_write_response)
 
-    challenge_req = nuki_messages.Nuki_REQ('0004')
-    challenge_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=challenge_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    challenge_req = nuki_messages.Request('0004')
+    challenge_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=challenge_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     challenge_req_encrypted_command = challenge_req_encrypted.generate()
 
     self._char_write_response = ""
@@ -295,9 +296,9 @@ class Nuki():
 
     print("Challenge received: %s" % command_parsed.nonce)
 
-    lock_action_req = nuki_messages.Nuki_LOCK_ACTION()
+    lock_action_req = nuki_messages.LockAction()
     lock_action_req.createPayload(self.config.getint(self.mac_address, 'ID'), lock_action, command_parsed.nonce)
-    lock_action_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=lock_action_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    lock_action_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=lock_action_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     lock_action_req_encrypted_command = lock_action_req_encrypted.generate()
 
     self._char_write_response = ""
@@ -331,8 +332,8 @@ class Nuki():
     key_turner_usd_io_handle = self.device.get_handle("a92ee202-5501-11e4-916c-0800200c9a66")
     self.device.subscribe('a92ee202-5501-11e4-916c-0800200c9a66', self._handle_char_write_response)
 
-    challenge_req = nuki_messages.Nuki_REQ('0004')
-    challenge_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=challenge_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    challenge_req = nuki_messages.Request('0004')
+    challenge_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=challenge_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     challenge_req_encrypted_command = challenge_req_encrypted.generate()
 
     self._char_write_response = ""
@@ -353,9 +354,9 @@ class Nuki():
 
     print("Challenge received: %s" % command_parsed.nonce)
 
-    calibration_req = nuki_messages.NukiCalibrationRequest()
+    calibration_req = nuki_messages.CalibrationRequest()
     calibration_req.create_payload(command_parsed.nonce, self.byte_swapper.swap(pin_hex))
-    calibration_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=calibration_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    calibration_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=calibration_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     calibration_req_encrypted_command = calibration_req_encrypted.generate()
 
     self._char_write_response = ""
@@ -381,8 +382,8 @@ class Nuki():
     key_turner_usd_io_handle = self.device.get_handle("a92ee202-5501-11e4-916c-0800200c9a66")
     self.device.subscribe('a92ee202-5501-11e4-916c-0800200c9a66', self._handle_char_write_response)
 
-    challenge_req = nuki_messages.Nuki_REQ('0004')
-    challenge_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=challenge_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    challenge_req = nuki_messages.Request('0004')
+    challenge_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=challenge_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     challenge_req_encrypted_command = challenge_req_encrypted.generate()
 
     self._char_write_response = ""
@@ -403,9 +404,9 @@ class Nuki():
 
     print("Challenge received: %s" % command_parsed.nonce)
 
-    log_entries_req = nuki_messages.Nuki_LOG_ENTRIES_REQUEST()
+    log_entries_req = nuki_messages.LogEntriesRequest()
     log_entries_req.createPayload(0, command_parsed.nonce, self.byte_swapper.swap(pin_hex))
-    log_entries_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=log_entries_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    log_entries_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=log_entries_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     log_entries_req_encrypted_command = log_entries_req_encrypted.generate()
 
     self._char_write_response = ""
@@ -441,8 +442,8 @@ class Nuki():
     key_turner_usd_io_handle = self.device.get_handle("a92ee202-5501-11e4-916c-0800200c9a66")
     self.device.subscribe('a92ee202-5501-11e4-916c-0800200c9a66', self._handle_char_write_response)
 
-    challenge_req = nuki_messages.Nuki_REQ('0004')
-    challenge_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=challenge_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    challenge_req = nuki_messages.Request('0004')
+    challenge_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=challenge_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     challenge_req_encrypted_command = challenge_req_encrypted.generate()
 
     print("Requesting CHALLENGE: %s" % challenge_req_encrypted.generate("HEX"))
@@ -464,9 +465,9 @@ class Nuki():
 
     print("Challenge received: %s" % command_parsed.nonce)
 
-    log_entries_req = nuki_messages.Nuki_LOG_ENTRIES_REQUEST()
+    log_entries_req = nuki_messages.LogEntriesRequest()
     log_entries_req.createPayload(count, command_parsed.nonce, self.byte_swapper.swap(pin_hex))
-    log_entries_req_encrypted = nuki_messages.Nuki_EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=log_entries_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    log_entries_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=log_entries_req, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     log_entries_req_encrypted_command = log_entries_req_encrypted.generate()
 
     self._char_write_response = ""
