@@ -5,7 +5,6 @@ from nacl.public import PrivateKey, Box
 from byteswap import ByteSwapper
 from crc import CrcCalculator
 import nuki_messages
-import sys
 import configparser
 import blescan
 import bluetooth._bluetooth as bluez
