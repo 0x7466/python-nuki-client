@@ -9,6 +9,7 @@ import hmac
 import hashlib
 import binascii
 from utils import *
+from errors import *
 
 
 class EncryptedCommand(object):
@@ -313,7 +314,7 @@ class LockAction(Command):
     elif lockAction == 'FOB_ACTION_3':
       self.lockAction = '83'
     else:
-      sys.exit("Invalid Lock Action request: %s (should be one of these: 'UNLOCK', 'LOCK', 'UNLATCH', 'LOCKNGO', 'LOCKNGO_UNLATCH', 'FOB_ACTION_1', 'FOB_ACTION_2' or 'FOB_ACTION_3')'" % lockAction)
+      raise LockCommandActionUnsupported(lockAction)
     self.payload = to_str(self.lockAction) + to_str(self.appID) + to_str(self.flags) + to_str(self.nonce)
 
 

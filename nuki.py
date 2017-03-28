@@ -10,9 +10,10 @@ import configparser
 import blescan
 import bluetooth._bluetooth as bluez
 from utils import *
+from errors import *
 
 
-class Nuki(): 
+class Nuki():
   def __init__(self, mac_address):
     """
     Creates a BLE connection with your Nuki KT.
@@ -33,21 +34,20 @@ class Nuki():
     Establishes the BLE connection to the KT.
     Private method.
     """
-    if self.device is None:
-      adapter = pygatt.backends.GATTToolBackend()
-      nuki_ble_connection_ready = False
+    adapter = pygatt.backends.GATTToolBackend()
+    nuki_ble_connection_unready = True
 
-      while nuki_ble_connection_ready:
-        print("Starting BLE adapter...")
-        adapter.start()
-        print("Init Nuki BLE connection...")
-        try :
-          self.device = adapter.connect(self.mac_address)
-          nuki_ble_connection_ready = True
-        except:
-          print("Unable to connect, retrying...")
+    while nuki_ble_connection_unready:
+      print("Starting BLE adapter...")
+      adapter.start()
+      print("Init Nuki BLE connection...")
+      try :
+        self.device = adapter.connect(self.mac_address)
+        nuki_ble_connection_unready = False
+      except:
+        print("Unable to connect, retrying...")
 
-      print("Nuki BLE connection established")
+    print("Nuki BLE connection established")
   
 
   def is_new_nuki_state_available(self):
@@ -63,8 +63,8 @@ class Nuki():
     try:
       sock = bluez.hci_open_dev(dev_id)
     except:
-      print("error accessing bluetooth device...")
-      sys.exit(1)
+      raise BLEDeviceAccessError('Error accessing BLE device.')
+
     blescan.hci_le_set_scan_parameters(sock)
     blescan.hci_enable_le_scan(sock)
     returned_list = blescan.parse_events(sock, 10)
@@ -120,11 +120,13 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
+
     if not self.parser.isNukiCommand(self._char_write_response):
-      sys.exit("Error while requesting public key: %s" % command_parsed)
+      raise CommandParseError('authenticate_user', 'Public Key', command_parsed)
 
     if command_parsed.command != '0003':
-      sys.exit("Nuki returned unexpected response (expecting PUBLIC_KEY): %s" % command_parsed.show())
+      raise CommandMismatchError('0003', command_parsed.command)
+
 
     public_key_nuki = command_parsed.publicKey
 
@@ -147,11 +149,13 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
+
     if not self.parser.isNukiCommand(self._char_write_response):
-      sys.exit("Error while pushing public key: %s" % command_parsed)
+      raise CommandParseError('authenticate_user', 'Challenge', command_parsed)
 
     if command_parsed.command != '0004':
-      sys.exit("Nuki returned unexpected response (expecting CHALLENGE): %s" % command_parsed.show())
+      raise CommandMismatchError('0004', command_parsed.command)
+
 
     print("Challenge received: %s" % command_parsed.nonce)
     nonce_nuki = command_parsed.nonce
@@ -167,11 +171,13 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
+
     if not self.parser.isNukiCommand(self._char_write_response):
-      sys.exit("Error while sending Authorization Authenticator: %s" % command_parsed)
+      raise CommandParseError('authenticate_user', 'Authorization Authenticator', command_parsed)
 
     if command_parsed.command != '0004':
-      sys.exit("Nuki returned unexpected response (expecting CHALLENGE): %s" % command_parsed.show())
+      raise CommandMismatchError('0004', command_parsed.command)
+
 
     print("Challenge received: %s" % command_parsed.nonce)
     nonce_nuki = command_parsed.nonce
@@ -187,11 +193,13 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
+
     if not self.parser.isNukiCommand(self._char_write_response):
-      sys.exit("Error while sending Authorization Data: %s" % command_parsed)
+      raise CommandParseError('authenticate_user', 'Authorization-ID', command_parsed)
 
     if command_parsed.command != '0007':
-      sys.exit("Nuki returned unexpected response (expecting AUTH_ID): %s" % command_parsed.show())
+      raise CommandMismatchError('0007', command_parsed.command)
+
 
     print("Authorization id received: %s" % command_parsed.show())
     nonce_nuki = command_parsed.nonce
@@ -211,11 +219,13 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
+
     if not self.parser.isNukiCommand(self._char_write_response):
-      sys.exit("Error while sending Authorization id Confirmation: %s" % command_parsed)
+      raise CommandParseError('authenticate_user', 'Status', command_parsed)
 
     if command_parsed.command != '000E':
-      sys.exit("Nuki returned unexpected response (expecting STATUS): %s" % command_parsed.show())
+      raise CommandMismatchError('000E', command_parsed.command)
+
 
     print("STATUS received: %s" % command_parsed.status)
 
@@ -243,13 +253,15 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
+
     if not self.parser.isNukiCommand(command_parsed):
-      sys.exit("Error while requesting Nuki STATES: %s" % command_parsed)
+      raise CommandParseError('read_lock_state', 'Nuki States', command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
 
     if command_parsed.command != '000C':
-      sys.exit("Nuki returned unexpected response (expecting Nuki STATES): %s" % command_parsed.show())
+      raise CommandMismatchError('000C', command_parsed.command)
+
 
     print(command_parsed.show())
     return command_parsed
@@ -286,13 +298,15 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
+
     if not self.parser.isNukiCommand(command_parsed):
-      sys.exit("Error while requesting Nuki CHALLENGE: %s" % command_parsed)
+      raise CommandParseError('lock_action', 'Challenge', command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
 
     if command_parsed.command != '0004':
-      sys.exit("Nuki returned unexpected response (expecting Nuki CHALLENGE): %s" % command_parsed.show())
+      raise CommandMismatchError('0004', command_parsed.command)
+
 
     print("Challenge received: %s" % command_parsed.nonce)
 
@@ -309,13 +323,15 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
+
     if not self.parser.isNukiCommand(command_parsed):
-      sys.exit("Error while requesting Nuki Lock Action: %s" % command_parsed)
+      raise CommandParseError('lock_action', 'Lock Action', command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
 
     if command_parsed.command != '000C' and command_parsed.command != '000E':
-      sys.exit("Nuki returned unexpected response (expecting Nuki STATUS/STATES): %s" % command_parsed.show())
+      raise CommandMismatchError('000C', command_parsed.command)
+
 
     print(command_parsed.show())
 
@@ -344,13 +360,15 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
+
     if not self.parser.isNukiCommand(command_parsed):
-      sys.exit("Error while requesting Nuki CHALLENGE: %s" % command_parsed)
+      raise CommandParseError('request_calibration', 'Challenge', command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
 
     if command_parsed.command != '0004':
-      sys.exit("Nuki returned unexpected response (expecting Nuki CHALLENGE): %s" % command_parsed.show())
+      raise CommandMismatchError('0004', command_parsed.command)
+
 
     print("Challenge received: %s" % command_parsed.nonce)
 
@@ -394,13 +412,15 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
+
     if not self.parser.isNukiCommand(command_parsed):
-      sys.exit("Error while requesting Nuki CHALLENGE: %s" % command_parsed)
+      raise CommandParseError('get_log_entries_count', 'Challenge', command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
 
     if command_parsed.command != '0004':
-      sys.exit("Nuki returned unexpected response (expecting Nuki CHALLENGE): %s" % command_parsed.show())
+      raise CommandMismatchError('0004', command_parsed.command)
+
 
     print("Challenge received: %s" % command_parsed.nonce)
 
@@ -416,13 +436,15 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
+
     if not self.parser.isNukiCommand(command_parsed):
-      sys.exit("Error while requesting Nuki Log Entries: %s" % command_parsed)
+      raise CommandParseError('get_log_entries_count', 'Log Entry Count', command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
 
     if command_parsed.command != '0026':
-      sys.exit("Nuki returned unexpected response (expecting Nuki LOG ENTRY): %s" % command_parsed.show())
+      raise CommandMismatchError('0026', command_parsed.command)
+
 
     print(command_parsed.show())
     return int(command_parsed.logCount, 16)
@@ -455,13 +477,15 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
+
     if not self.parser.isNukiCommand(command_parsed):
-      sys.exit("Error while requesting Nuki CHALLENGE: %s" % command_parsed)
+      raise CommandParseError('get_log_entries', 'Challenge', command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
 
     if command_parsed.command != '0004':
-      sys.exit("Nuki returned unexpected response (expecting Nuki CHALLENGE): %s" % command_parsed.show())
+      raise CommandMismatchError('0004', command_parsed.command)
+
 
     print("Challenge received: %s" % command_parsed.nonce)
 
@@ -483,15 +507,21 @@ class Nuki():
       print("Decrypting message %s" % message)
       try:
         command_parsed = self.parser.decrypt(message,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
+        
         if not self.parser.isNukiCommand(command_parsed):
-          sys.exit("Error while requesting Nuki Log Entries: %s" % command_parsed)
+          raise CommandParseError('get_log_entries', 'Log Entries', command_parsed)
+
         command_parsed = self.parser.parse(command_parsed)
+
         if command_parsed.command != '0024' and command_parsed.command != '0026' and command_parsed.command != '000E':
-          sys.exit("Nuki returned unexpected response (expecting Nuki LOG ENTRY): %s" % command_parsed.show())
-        print("%s" % command_parsed.show())
+          raise CommandMismatchError('0024/0026/000E', command_parsed.command)
+
+        print(command_parsed.show())
+
         if command_parsed.command == '0024':
           log_messages.append(command_parsed)
       except:
         print("Unable to decrypt message")
+
     return log_messages
     
