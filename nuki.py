@@ -55,7 +55,7 @@ class Nuki():
     Checks if a new KT state is available.
     Only works if script is running as root.
     """
-    if self.device != None:
+    if self.device is not None:
       self.device.disconnect()
       self.device = None
       
@@ -120,7 +120,7 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
-    if self.parser.isNukiCommand(self._char_write_response) == False:
+    if not self.parser.isNukiCommand(self._char_write_response):
       sys.exit("Error while requesting public key: %s" % command_parsed)
 
     if command_parsed.command != '0003':
@@ -147,7 +147,7 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
-    if self.parser.isNukiCommand(self._char_write_response) == False:
+    if not self.parser.isNukiCommand(self._char_write_response):
       sys.exit("Error while pushing public key: %s" % command_parsed)
 
     if command_parsed.command != '0004':
@@ -167,7 +167,7 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
-    if self.parser.isNukiCommand(self._char_write_response) == False:
+    if not self.parser.isNukiCommand(self._char_write_response):
       sys.exit("Error while sending Authorization Authenticator: %s" % command_parsed)
 
     if command_parsed.command != '0004':
@@ -187,7 +187,7 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
-    if self.parser.isNukiCommand(self._char_write_response) == False:
+    if not self.parser.isNukiCommand(self._char_write_response):
       sys.exit("Error while sending Authorization Data: %s" % command_parsed)
 
     if command_parsed.command != '0007':
@@ -211,7 +211,7 @@ class Nuki():
 
     command_parsed = self.parser.parse(self._char_write_response)
 
-    if self.parser.isNukiCommand(self._char_write_response) == False:
+    if not self.parser.isNukiCommand(self._char_write_response):
       sys.exit("Error while sending Authorization id Confirmation: %s" % command_parsed)
 
     if command_parsed.command != '000E':
@@ -243,7 +243,7 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
-    if self.parser.isNukiCommand(command_parsed) == False:
+    if not self.parser.isNukiCommand(command_parsed):
       sys.exit("Error while requesting Nuki STATES: %s" % command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
@@ -286,7 +286,7 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
-    if self.parser.isNukiCommand(command_parsed) == False:
+    if not self.parser.isNukiCommand(command_parsed):
       sys.exit("Error while requesting Nuki CHALLENGE: %s" % command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
@@ -309,7 +309,7 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
-    if self.parser.isNukiCommand(command_parsed) == False:
+    if not self.parser.isNukiCommand(command_parsed):
       sys.exit("Error while requesting Nuki Lock Action: %s" % command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
@@ -344,7 +344,7 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
-    if self.parser.isNukiCommand(command_parsed) == False:
+    if not self.parser.isNukiCommand(command_parsed):
       sys.exit("Error while requesting Nuki CHALLENGE: %s" % command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
@@ -394,7 +394,7 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
-    if self.parser.isNukiCommand(command_parsed) == False:
+    if not self.parser.isNukiCommand(command_parsed):
       sys.exit("Error while requesting Nuki CHALLENGE: %s" % command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
@@ -416,7 +416,7 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
-    if self.parser.isNukiCommand(command_parsed) == False:
+    if not self.parser.isNukiCommand(command_parsed):
       sys.exit("Error while requesting Nuki Log Entries: %s" % command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
@@ -455,7 +455,7 @@ class Nuki():
 
     command_parsed = self.parser.decrypt(self._char_write_response,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
-    if self.parser.isNukiCommand(command_parsed) == False:
+    if not self.parser.isNukiCommand(command_parsed):
       sys.exit("Error while requesting Nuki CHALLENGE: %s" % command_parsed)
 
     command_parsed = self.parser.parse(command_parsed)
@@ -483,7 +483,7 @@ class Nuki():
       print("Decrypting message %s" % message)
       try:
         command_parsed = self.parser.decrypt(message,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
-        if self.parser.isNukiCommand(command_parsed) == False:
+        if not self.parser.isNukiCommand(command_parsed):
           sys.exit("Error while requesting Nuki Log Entries: %s" % command_parsed)
         command_parsed = self.parser.parse(command_parsed)
         if command_parsed.command != '0024' and command_parsed.command != '0026' and command_parsed.command != '000E':
