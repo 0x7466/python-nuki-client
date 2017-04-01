@@ -1,17 +1,16 @@
 import nacl.utils
 import pygatt.backends
 import array
-import nuki_messages
 import configparser
-import blescan
 import bluetooth._bluetooth as bluez
 import logging
 
 from nacl.public import PrivateKey, Box
-from byteswap import ByteSwapper
-from crc import CrcCalculator
-from utils import *
-from errors import *
+from . import nuki_messages, blescan
+from .byteswap import ByteSwapper
+from .crc import CrcCalculator
+from .utils import *
+from .errors import *
 
 
 class Nuki():

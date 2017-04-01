@@ -1,5 +1,5 @@
-from crc import CrcCalculator
-from byteswap import ByteSwapper
+from .crc import CrcCalculator
+from .byteswap import ByteSwapper
 import array
 import nacl.utils
 import nacl.secret
@@ -8,8 +8,8 @@ from nacl.bindings.crypto_box import crypto_box_beforenm
 import hmac
 import hashlib
 import binascii
-from utils import *
-from errors import *
+from .utils import *
+from .errors import *
 
 
 class EncryptedCommand(object):
