@@ -31,6 +31,19 @@ class Nuki():
     self.logger = logger = logging.getLogger('Nuki Client')
 
 
+
+  def _handles_ble_requests(func):
+    def wrapper(self, *args, **kwargs):
+      self._make_ble_connection()
+      try:
+        func(self, *args, **kwargs)
+      except Exception as err:
+        self._close_ble_connection()
+        raise err
+      self._close_ble_connection()
+    return wrapper
+
+
   def _make_ble_connection(self):
     """
     Establishes the BLE connection to the KT.
@@ -159,6 +172,7 @@ class Nuki():
     return command_parsed
 
 
+  @_handles_ble_requests
   def authenticate_user(self, public_key_hex, private_key_hex, id, id_type, name):
     """
     Authorizes a new user. The KT has to be in inclusion mode for this process.
@@ -177,8 +191,6 @@ class Nuki():
     :param id_type: The type of the user. ('00' => 'app', '01' => 'bridge', '02' => 'fob')
     :param name: The display name for this user. (Appears in the logs)
     """
-    self._make_ble_connection()
-
     self.config.remove_section(self.mac_address)
     self.config.add_section(self.mac_address)
 
@@ -248,29 +260,25 @@ class Nuki():
 
     self.logger.info('STATUS received: {}'.format(command_parsed.status))
 
-    self._close_ble_connection()
-
     return command_parsed.status
   
 
 
+  @_handles_ble_requests
   def read_lock_state(self):
     """
     Reads the current lock state from the KT.
     """
-    self._make_ble_connection()
-
     handle = self._subscribe('a92ee202-5501-11e4-916c-0800200c9a66')
     request = nuki_messages.Request(payload='000C')
     command_parsed = self._make_encrypted_request(request, handle, '000C')
-
-    self._close_ble_connection()
 
     self.logger.info(command_parsed.show())
     return command_parsed
     
 
 
+  @_handles_ble_requests
   def lock_action(self, lock_action):
     """
     Performs a lock action at the KT.
@@ -287,7 +295,6 @@ class Nuki():
       * FOB_ACTION_2
       * FOB_ACTION_3
     """
-    self._make_ble_connection()
     handle = self._subscribe('a92ee202-5501-11e4-916c-0800200c9a66')
 
     # Request challenge
@@ -300,12 +307,12 @@ class Nuki():
     request.createPayload(self.config.getint(self.mac_address, 'ID'), lock_action, command_parsed.nonce)
     command_parsed = self._make_encrypted_request(request, handle, '000E')
 
-    self._close_ble_connection()
-
     self.logger.info(command_parsed.show())
     return command_parsed
 
 
+
+  @_handles_ble_requests
   def request_calibration(self, pin=0000):
     """
     Requests calibration of the KT.
@@ -314,7 +321,6 @@ class Nuki():
     """
     pin_hex = '%04x' % pin
 
-    self._make_ble_connection()
     handle = self._subscribe('a92ee202-5501-11e4-916c-0800200c9a66')
 
     # Request challenge
@@ -328,12 +334,11 @@ class Nuki():
     request.create_payload(command_parsed.nonce, self.byte_swapper.swap(pin_hex))
     command_parsed = self._make_encrypted_request(request, handle, '000E')
 
-    self._close_ble_connection()
-
     self.logger.info(command_parsed.show())
     return command_parsed
 
 
+  @_handles_ble_requests
   def get_log_entries_count(self, pin=0000):
     """
     Fetches the count of the log entries at the KT.
@@ -342,7 +347,6 @@ class Nuki():
     """
     pin_hex = '%04x' % pin
 
-    self._make_ble_connection()
     handle = self._subscribe('a92ee202-5501-11e4-916c-0800200c9a66')
 
 
@@ -357,12 +361,12 @@ class Nuki():
     request.createPayload(0, command_parsed.nonce, self.byte_swapper.swap(pin_hex))
     command_parsed = self._make_encrypted_request(request, handle, '0026')
 
-    self._close_ble_connection()
-
     self.logger.info(command_parsed.show())
     return int(command_parsed.logCount, 16)
   
 
+
+  @_handles_ble_requests
   def get_log_entries(self, count, pin=0000):
     """
     Fetches log entries form the KT.
@@ -373,7 +377,6 @@ class Nuki():
     """
     pin_hex = '%04x' % pin
 
-    self._make_ble_connection()
     handle = self._subscribe('a92ee202-5501-11e4-916c-0800200c9a66')
     
 
@@ -416,8 +419,6 @@ class Nuki():
           log_messages.append(command_parsed)
       except:
         self.logger.error('Unable to decrypt message')
-
-    self._close_ble_connection()
 
     return log_messages
     
