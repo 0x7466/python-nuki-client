@@ -26,8 +26,9 @@ class Nuki():
     self.mac_address = mac_address
     self.config = configparser.RawConfigParser()
     self.config.read('./nuki.cfg')
+    self.adapter = None
     self.device = None
-    self.logger = logger = logging.getLogger(__name__)
+    self.logger = logger = logging.getLogger('Nuki Client')
 
 
   def _make_ble_connection(self):
@@ -35,21 +36,30 @@ class Nuki():
     Establishes the BLE connection to the KT.
     Private method.
     """
-    adapter = pygatt.backends.GATTToolBackend()
-    nuki_ble_connection_unready = True
+    self.adapter = pygatt.backends.GATTToolBackend()
+    nuki_ble_connection_ready = False
 
-    while nuki_ble_connection_unready:
+    while not nuki_ble_connection_ready:
       self.logger.debug("Starting BLE adapter...")
-      adapter.start()
+      self.adapter.start()
       self.logger.debug("Init Nuki BLE connection...")
       try :
-        self.device = adapter.connect(self.mac_address)
-        nuki_ble_connection_unready = False
+        self.device = self.adapter.connect(self.mac_address)
+        nuki_ble_connection_ready = True
       except:
         self.logger.warning("Unable to connect, retry...")
 
     self.logger.debug("Nuki BLE connection established")
-  
+
+
+  def _close_ble_connection(self):
+    """
+    Closes the connection and thread.
+    """
+    if self.adapter is not None:
+      self.logger.debug('Close BLE Connection...')
+      self.adapter.stop()
+
 
   def is_new_nuki_state_available(self):
     """
@@ -237,6 +247,9 @@ class Nuki():
       self.config.write(configfile)
 
     self.logger.info('STATUS received: {}'.format(command_parsed.status))
+
+    self._close_ble_connection()
+
     return command_parsed.status
   
 
@@ -250,6 +263,8 @@ class Nuki():
     handle = self._subscribe('a92ee202-5501-11e4-916c-0800200c9a66')
     request = nuki_messages.Request(payload='000C')
     command_parsed = self._make_encrypted_request(request, handle, '000C')
+
+    self._close_ble_connection()
 
     self.logger.info(command_parsed.show())
     return command_parsed
@@ -285,6 +300,8 @@ class Nuki():
     request.createPayload(self.config.getint(self.mac_address, 'ID'), lock_action, command_parsed.nonce)
     command_parsed = self._make_encrypted_request(request, handle, '000E')
 
+    self._close_ble_connection()
+
     self.logger.info(command_parsed.show())
     return command_parsed
 
@@ -310,6 +327,8 @@ class Nuki():
     request = nuki_messages.CalibrationRequest()
     request.create_payload(command_parsed.nonce, self.byte_swapper.swap(pin_hex))
     command_parsed = self._make_encrypted_request(request, handle, '000E')
+
+    self._close_ble_connection()
 
     self.logger.info(command_parsed.show())
     return command_parsed
@@ -338,6 +357,7 @@ class Nuki():
     request.createPayload(0, command_parsed.nonce, self.byte_swapper.swap(pin_hex))
     command_parsed = self._make_encrypted_request(request, handle, '0026')
 
+    self._close_ble_connection()
 
     self.logger.info(command_parsed.show())
     return int(command_parsed.logCount, 16)
@@ -396,6 +416,8 @@ class Nuki():
           log_messages.append(command_parsed)
       except:
         self.logger.error('Unable to decrypt message')
+
+    self._close_ble_connection()
 
     return log_messages
     
