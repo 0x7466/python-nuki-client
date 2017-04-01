@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: python-nuki-client
-Version: 0.1
+Version: 0.1.1
 Summary: Python library for Nuki KT
 Home-page: https://github.com/MyHomeAutomations/python-nuki-client
 Author: Tobias Feistmantl / Jan De Beule
