@@ -8,7 +8,9 @@ This python library let's you talk with the Nuki smart lock (https://nuki.io/)
 Install a BLE-compatible USB dongle (or use the built-in bluetooth stack if available)
 
 ### 2. Install dependencies
-`$ sudo apt install libffi-dev pkg-config libboost-python-dev libboost-thread-dev libbluetooth-dev libglib2.0-dev python3-dev bluetooth libbluetooth-dev`
+```
+$ sudo apt install libffi-dev pkg-config libboost-python-dev libboost-thread-dev libbluetooth-dev libglib2.0-dev python3-dev bluetooth libbluetooth-dev
+```
 
 ### 3. Install bluez
 You'll get more infos [here](https://learn.adafruit.com/install-bluez-on-the-raspberry-pi/installation)
@@ -17,7 +19,9 @@ You'll get more infos [here](https://learn.adafruit.com/install-bluez-on-the-ras
 Replace the `/usr/local/lib/python3.[YOUR-PY-VERSION]/dist-packages/pygatt/backends/gatttool/gatttool.py` file with the file from this repository.
 
 ### 5. Install Nuki Client
-`$ sudo pip install python-nuki-client`
+```
+$ sudo pip install python-nuki-client
+```
 
 ### That's all!
 You are now ready to use the library in python!
