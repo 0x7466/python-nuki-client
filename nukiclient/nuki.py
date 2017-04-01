@@ -14,20 +14,31 @@ from .errors import *
 
 
 class Nuki():
-  def __init__(self, mac_address):
+  def __init__(self, mac_address, config_path='./nuki.cfg'):
     """
     Creates a BLE connection with your Nuki KT.
     :param mac_address: The MAC address of the KT.
     """
-    self._char_write_response = ""
+    self.mac_address = mac_address
+    self.config_path = config_path
+
+    self._char_write_response = ''
+
     self.parser = nuki_messages.CommandParser()
     self.crc_calculator = CrcCalculator()
     self.byte_swapper = ByteSwapper()
-    self.mac_address = mac_address
-    self.config = configparser.RawConfigParser()
-    self.config.read('./nuki.cfg')
+
+    self.config = configparser.ConfigParser()
+    self.config.read(self.config_path)
+
+    self.config_data = None
+
+    if self.mac_address in self.config.sections():
+      self.config_data = self.config[self.mac_address]
+
     self.adapter = None
     self.device = None
+
     self.logger = logger = logging.getLogger('Nuki Client')
 
 
@@ -130,7 +141,7 @@ class Nuki():
     request_command = command.generate()
 
     self.logger.debug('Request Nuki using command: {}'.format(command.show()))
-    self.device.char_write_handle(handle, request_command, True, 5)
+    self.device.char_write_handle(handle, request_command, True, 10)
     self.logger.debug('Nuki requested')
 
     command_parsed = self.parser.parse(self._char_write_response)
@@ -151,14 +162,14 @@ class Nuki():
 
     self._char_write_response = ''
 
-    command_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=command, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    command_encrypted = nuki_messages.EncryptedCommand(authID=self.config_data['authorizationID'], nukiCommand=command, publicKey=self.config_data['publicKeyNuki'], privateKey=self.config_data['privateKeyHex'])
     request_command = command_encrypted.generate()
 
     self.logger.debug('Request Nuki using command: {}'.format(command.show()))
-    self.device.char_write_handle(handle, request_command, True, 5)
+    self.device.char_write_handle(handle, request_command, True, 10)
     self.logger.debug('Nuki requested')
 
-    command_parsed = self.parser.decrypt(self._char_write_response, self.config.get(self.mac_address, 'publicKeyNuki'), self.config.get(self.mac_address, 'privateKeyHex'))[8:]
+    command_parsed = self.parser.decrypt(self._char_write_response, self.config_data['publicKeyNuki'], self.config_data['privateKeyHex'])[8:]
 
     ## Validate
     if not self.parser.isNukiCommand(command_parsed):
@@ -191,11 +202,10 @@ class Nuki():
     :param id_type: The type of the user. ('00' => 'app', '01' => 'bridge', '02' => 'fob')
     :param name: The display name for this user. (Appears in the logs)
     """
-    self.config.remove_section(self.mac_address)
-    self.config.add_section(self.mac_address)
+    self.config[self.mac_address] = {}
 
+    
     handle = self._subscribe('a92ee101-5501-11e4-916c-0800200c9a66')
-
 
 
     # Requests the PK of the KT.
@@ -206,13 +216,16 @@ class Nuki():
     public_key_nuki = command_parsed.publicKey
     self.logger.debug('Public key received: {}'.format(public_key_nuki))
 
-    # Stores the information in the config.
-    self.config.set(self.mac_address, 'publicKeyNuki', to_str(public_key_nuki))
-    self.config.set(self.mac_address, 'publicKeyHex', to_str(public_key_hex))
-    self.config.set(self.mac_address, 'privateKeyHex', to_str(private_key_hex))
-    self.config.set(self.mac_address, 'ID', to_str(id))
-    self.config.set(self.mac_address, 'IDType', to_str(id_type))
-    self.config.set(self.mac_address, 'name', to_str(name))
+    
+
+    self.config[self.mac_address] = {
+      'publicKeyNuki': to_str(public_key_nuki),
+      'publicKeyHex': to_str(public_key_hex),
+      'privateKeyHex': to_str(private_key_hex),
+      'ID': to_str(id),
+      'IDType': to_str(id_type),
+      'name': to_str(name)
+    }
 
 
 
@@ -245,7 +258,7 @@ class Nuki():
     nonce_nuki = command_parsed.nonce
 
     authorization_id = command_parsed.authID
-    self.config.set(self.mac_address, 'authorizationID', to_str(authorization_id))
+    self.config[self.mac_address]['authorizationID'] = to_str(authorization_id)
 
 
     # Sends the auth ID confirmation request.
@@ -255,7 +268,7 @@ class Nuki():
 
     command_parsed = self._make_request(request, handle, '000E')
 
-    with open('./nuki.cfg', 'at') as configfile:
+    with open(self.config_path, 'wt') as configfile:
       self.config.write(configfile)
 
     self.logger.info('STATUS received: {}'.format(command_parsed.status))
@@ -304,7 +317,7 @@ class Nuki():
 
     # Send lock action
     request = nuki_messages.LockAction()
-    request.createPayload(self.config.getint(self.mac_address, 'ID'), lock_action, command_parsed.nonce)
+    request.createPayload(int(self.config_data['ID']), lock_action, command_parsed.nonce)
     command_parsed = self._make_encrypted_request(request, handle, '000E')
 
     self.logger.info(command_parsed.show())
@@ -388,7 +401,7 @@ class Nuki():
 
     request = nuki_messages.LogEntriesRequest()
     request.createPayload(count, command_parsed.nonce, self.byte_swapper.swap(pin_hex))
-    log_entries_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=request, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
+    log_entries_req_encrypted = nuki_messages.EncryptedCommand(authID=self.config_data['authorizationID'], nukiCommand=request, publicKey=self.config_data['publicKeyNuki'], privateKey=self.config_data['privateKeyHex'])
     log_entries_req_encrypted_command = log_entries_req_encrypted.generate()
 
     self._char_write_response = ""
@@ -403,7 +416,7 @@ class Nuki():
     for message in messages:
       self.logger.debug('Decrypting message {}'.format(message))
       try:
-        command_parsed = self.parser.decrypt(message,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
+        command_parsed = self.parser.decrypt(message, self.config_data['publicKeyNuki'], self.config_data['privateKeyHex'])[8:]
         
         if not self.parser.isNukiCommand(command_parsed):
           raise CommandParseError('get_log_entries', 'Log Entries', command_parsed)

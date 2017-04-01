@@ -46,11 +46,11 @@ id = 50
 id_type = '01'
 name = "PiBridge"
 
-nuki = Nuki(nuki_mac_address)
+nuki = Nuki(nuki_mac_address, config_path='path_to_your_config/config.ini')
 nuki.authenticate_user(public_key_hex, private_key_hex, id, id_type, name)
 ```
 
-**REMARK 1** The credentials are stored in the file (hard-coded for the moment in nuki.py) : ./nuki.cfg
+**REMARK 1** The credentials are stored in the file you define at instantiation : Default is `./nuki.cfg`
 
 **REMARK 2** Authenticating is only possible if the lock is in 'pairing mode'. You can set it to this mode by pressing the button on the lock for 5 seconds until the complete LED ring starts to shine.
 
@@ -65,7 +65,7 @@ from nukiclient import Nuki
 nuki_mac_address = "00:00:00:00:00:01"
 pin = 0000
 
-nuki = Nuki(nuki_mac_address)
+nuki = Nuki(nuki_mac_address, config_path='path_to_your_config/config.ini')
 
 # Reads the lock state
 nuki.read_lock_state()
