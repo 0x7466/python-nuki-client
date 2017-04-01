@@ -1,0 +1,5 @@
+pygatt
+pynacl
+crc16
+pybluez
+pexpect

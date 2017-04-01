@@ -1,0 +1,16 @@
+setup.cfg
+setup.py
+nukiclient/__init__.py
+nukiclient/blescan.py
+nukiclient/byteswap.py
+nukiclient/crc.py
+nukiclient/errors.py
+nukiclient/gatttool.py
+nukiclient/nuki.py
+nukiclient/nuki_messages.py
+nukiclient/utils.py
+python_nuki_client.egg-info/PKG-INFO
+python_nuki_client.egg-info/SOURCES.txt
+python_nuki_client.egg-info/dependency_links.txt
+python_nuki_client.egg-info/requires.txt
+python_nuki_client.egg-info/top_level.txt
