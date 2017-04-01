@@ -20,7 +20,7 @@ Replace the `/usr/local/lib/python3.[YOUR-PY-VERSION]/dist-packages/pygatt/backe
 
 ### 5. Install Nuki Client
 ```
-$ sudo pip install python-nuki-client
+$ sudo pip3 install python-nuki-client
 ```
 
 ### That's all!
