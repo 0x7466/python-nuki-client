@@ -1,13 +1,15 @@
 import nacl.utils
 import pygatt.backends
 import array
-from nacl.public import PrivateKey, Box
-from byteswap import ByteSwapper
-from crc import CrcCalculator
 import nuki_messages
 import configparser
 import blescan
 import bluetooth._bluetooth as bluez
+import logging
+
+from nacl.public import PrivateKey, Box
+from byteswap import ByteSwapper
+from crc import CrcCalculator
 from utils import *
 from errors import *
 
@@ -26,6 +28,7 @@ class Nuki():
     self.config = configparser.RawConfigParser()
     self.config.read('./nuki.cfg')
     self.device = None
+    self.logger = logger = logging.getLogger(__name__)
 
 
   def _make_ble_connection(self):
@@ -37,16 +40,16 @@ class Nuki():
     nuki_ble_connection_unready = True
 
     while nuki_ble_connection_unready:
-      print("Starting BLE adapter...")
+      self.logger.debug("Starting BLE adapter...")
       adapter.start()
-      print("Init Nuki BLE connection...")
+      self.logger.debug("Init Nuki BLE connection...")
       try :
         self.device = adapter.connect(self.mac_address)
         nuki_ble_connection_unready = False
       except:
-        print("Unable to connect, retrying...")
+        self.logger.warning("Unable to connect, retry...")
 
-    print("Nuki BLE connection established")
+    self.logger.debug("Nuki BLE connection established")
   
 
   def is_new_nuki_state_available(self):
@@ -89,7 +92,7 @@ class Nuki():
 
   def _subscribe(self, uuid):
     handle = self.device.get_handle(uuid)
-    print("UUID handle created: %04x" % handle)
+    self.logger.debug("UUID handle created: %04x" % handle)
 
     self.device.subscribe(uuid, self._handle_char_write_response)
 
@@ -104,9 +107,9 @@ class Nuki():
 
     request_command = command.generate()
 
-    print('Request Nuki using command: {}'.format(command.show()))
+    self.logger.debug('Request Nuki using command: {}'.format(command.show()))
     self.device.char_write_handle(handle, request_command, True, 5)
-    print('Nuki requested')
+    self.logger.debug('Nuki requested')
 
     command_parsed = self.parser.parse(self._char_write_response)
 
@@ -129,9 +132,9 @@ class Nuki():
     command_encrypted = nuki_messages.EncryptedCommand(authID=self.config.get(self.mac_address, 'authorizationID'), nukiCommand=command, publicKey=self.config.get(self.mac_address, 'publicKeyNuki'), privateKey=self.config.get(self.mac_address, 'privateKeyHex'))
     request_command = command_encrypted.generate()
 
-    print('Request Nuki using command: {}'.format(command.show()))
+    self.logger.debug('Request Nuki using command: {}'.format(command.show()))
     self.device.char_write_handle(handle, request_command, True, 5)
-    print('Nuki requested')
+    self.logger.debug('Nuki requested')
 
     command_parsed = self.parser.decrypt(self._char_write_response, self.config.get(self.mac_address, 'publicKeyNuki'), self.config.get(self.mac_address, 'privateKeyHex'))[8:]
 
@@ -180,7 +183,7 @@ class Nuki():
     command_parsed = self._make_request(request, handle, command_id=command_id)
 
     public_key_nuki = command_parsed.publicKey
-    print('Public key received: {}'.format(public_key_nuki))
+    self.logger.debug('Public key received: {}'.format(public_key_nuki))
 
     # Stores the information in the config.
     self.config.set(self.mac_address, 'publicKeyNuki', to_str(public_key_nuki))
@@ -197,7 +200,7 @@ class Nuki():
     command_parsed = self._make_request(request, handle, command_id='0004')
 
     nonce_nuki = command_parsed.nonce
-    print('Challenge received: {}'.format(nonce_nuki))
+    self.logger.debug('Challenge received: {}'.format(nonce_nuki))
     
 
 
@@ -208,7 +211,7 @@ class Nuki():
     command_parsed = self._make_request(request, handle, '0004')
 
     nonce_nuki = command_parsed.nonce
-    print('Challenge received: {}'.format(nonce_nuki))
+    self.logger.debug('Challenge received: {}'.format(nonce_nuki))
 
 
     # Sends an auth data request and receives the auth ID.
@@ -217,7 +220,7 @@ class Nuki():
 
     command_parsed = self._make_request(request, handle, '0007')
 
-    print('Authorization ID received: {}'.format(command_parsed.show()))
+    self.logger.debug('Authorization ID received: {}'.format(command_parsed.show()))
     nonce_nuki = command_parsed.nonce
 
     authorization_id = command_parsed.authID
@@ -231,12 +234,10 @@ class Nuki():
 
     command_parsed = self._make_request(request, handle, '000E')
 
-    print("STATUS received: %s" % command_parsed.status)
-
-
-
     with open('./nuki.cfg', 'at') as configfile:
       self.config.write(configfile)
+
+    self.logger.info('STATUS received: {}'.format(command_parsed.status))
     return command_parsed.status
   
 
@@ -251,7 +252,7 @@ class Nuki():
     request = nuki_messages.Request(payload='000C')
     command_parsed = self._make_encrypted_request(request, handle, '000C')
 
-    print(command_parsed.show())
+    self.logger.info(command_parsed.show())
     return command_parsed
     
 
@@ -278,14 +279,14 @@ class Nuki():
     # Request challenge
     request = nuki_messages.Request('0004')
     command_parsed = self._make_encrypted_request(request, handle, '0004')
-    print("Challenge received: %s" % command_parsed.nonce)
+    self.logger.debug('Challenge received: {}'.format(command_parsed.nonce))
 
     # Send lock action
     request = nuki_messages.LockAction()
     request.createPayload(self.config.getint(self.mac_address, 'ID'), lock_action, command_parsed.nonce)
     command_parsed = self._make_encrypted_request(request, handle, '000E')
 
-    print(command_parsed.show())
+    self.logger.info(command_parsed.show())
     return command_parsed
 
 
@@ -303,7 +304,7 @@ class Nuki():
     # Request challenge
     request = nuki_messages.Request('0004')
     command_parsed = self._make_encrypted_request(request, handle, '0004')
-    print("Challenge received: %s" % command_parsed.nonce)
+    self.logger.debug('Challenge received: {}'.format(command_parsed.nonce))
 
 
     # Send calibration request
@@ -311,7 +312,7 @@ class Nuki():
     request.create_payload(command_parsed.nonce, self.byte_swapper.swap(pin_hex))
     command_parsed = self._make_encrypted_request(request, handle, '000E')
 
-
+    self.logger.info(command_parsed.show())
     return command_parsed
 
 
@@ -330,7 +331,7 @@ class Nuki():
     # Request challenge
     request = nuki_messages.Request('0004')
     command_parsed = self._make_encrypted_request(request, handle, '0004')
-    print("Challenge received: %s" % command_parsed.nonce)
+    self.logger.debug('Challenge received: {}'.format(command_parsed.nonce))
 
 
     # Make log entry count request
@@ -339,7 +340,7 @@ class Nuki():
     command_parsed = self._make_encrypted_request(request, handle, '0026')
 
 
-    print(command_parsed.show())
+    self.logger.info(command_parsed.show())
     return int(command_parsed.logCount, 16)
   
 
@@ -360,7 +361,7 @@ class Nuki():
     # Request challenge
     request = nuki_messages.Request('0004')
     command_parsed = self._make_encrypted_request(request, handle, '0004')
-    print("Challenge received: %s" % command_parsed.nonce)
+    self.logger.debug('Challenge received: {}'.format(command_parsed.nonce))
 
 
     request = nuki_messages.LogEntriesRequest()
@@ -371,14 +372,14 @@ class Nuki():
     self._char_write_response = ""
 
     self.device.char_write_handle(handle, log_entries_req_encrypted_command, True, 6)
-    print("Nuki Log Entries Request sent: %s" % request.show())
+    self.logger.debug('Nuki Log Entries Request sent: {}'.format(request.show()))
 
     messages = self.parser.splitEncryptedMessages(self._char_write_response)
-    print("Received %d messages" % len(messages))
+    self.logger.debug('Received {} messages'.format(len(messages)))
 
     log_messages = []
     for message in messages:
-      print("Decrypting message %s" % message)
+      self.logger.debug('Decrypting message {}'.format(message))
       try:
         command_parsed = self.parser.decrypt(message,self.config.get(self.mac_address, 'publicKeyNuki'),self.config.get(self.mac_address, 'privateKeyHex'))[8:]
         
@@ -390,12 +391,12 @@ class Nuki():
         if command_parsed.command != '0024' and command_parsed.command != '0026' and command_parsed.command != '000E':
           raise CommandMismatchError('0024/0026/000E', command_parsed.command)
 
-        print(command_parsed.show())
+        self.logger.info(command_parsed.show())
 
         if command_parsed.command == '0024':
           log_messages.append(command_parsed)
       except:
-        print("Unable to decrypt message")
+        self.logger.error('Unable to decrypt message')
 
     return log_messages
     

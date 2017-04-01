@@ -479,7 +479,7 @@ class CommandParser:
       command = self.byteSwapper.swap(commandString[:4]).upper()
       payload = commandString[4:-4]
       crc = self.byteSwapper.swap(commandString[-4:])
-      print("command = %s, payload = %s, crc = %s" % (command,payload,crc))
+      # print("command = %s, payload = %s, crc = %s" % (command,payload,crc))
       if command == '0001':
         return Request(payload)
       elif command == '0003':
