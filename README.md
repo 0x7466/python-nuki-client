@@ -1,38 +1,27 @@
 # Nuki client for Python 3
 
-This python library let's you talk with Nuki lock (https://nuki.io/en/)
+This python library let's you talk with the Nuki smart lock (https://nuki.io/)
 
 ## Get started
 
 ### 1. Hardware
 Install a BLE-compatible USB dongle (or use the built-in bluetooth stack if available)
 
-### 2. Install libffi
-`$ sudo apt-get install libffi-dev`
+### 2. Install dependencies
+```
+$ sudo apt install libffi-dev pkg-config libboost-python-dev libboost-thread-dev libbluetooth-dev libglib2.0-dev python3-dev bluetooth libbluetooth-dev
+```
 
 ### 3. Install bluez
 You'll get more infos [here](https://learn.adafruit.com/install-bluez-on-the-raspberry-pi/installation)
 
-### 4. Install pygatt
-`$ pip3 install pygatt`
+### 4. Some hacks
+Replace the `/usr/local/lib/python3.[YOUR-PY-VERSION]/dist-packages/pygatt/backends/gatttool/gatttool.py` file with the file from this repository.
 
-### 5. Some hacks
-Replace the `/usr/local/lib/python2.7/dist-packages/pygatt/backends/gatttool/gatttool.py` file with the file from this repository.
-
-### 6. Install nacl
-`$ pip3 install pynacl`
-
-### 7. Install crc16
-`$ pip3 install crc16`
-
-### 8. Install Bluetooth
-`$ sudo apt install bluetooth libbluetooth-dev`
-
-### 9. Install pybluez
-`$ pip3 install pybluez`
-
-### 10. Install pexpect
-`$ pip3 install pexpect`
+### 5. Install Nuki Client
+```
+$ sudo pip3 install python-nuki-client
+```
 
 ### That's all!
 You are now ready to use the library in python!
@@ -42,7 +31,7 @@ You are now ready to use the library in python!
 Before you will be able to send commands to the Nuki lock using the library, you must first authenticate (once!) yourself with a self-generated public/private keypair (using NaCl):
 
 ```python
-import nuki as _nuki
+from nukiclient import Nuki
 from nacl.public import PrivateKey
 import binascii
 
@@ -57,7 +46,7 @@ id = 50
 id_type = '01'
 name = "PiBridge"
 
-nuki = _nuki.Nuki(nuki_mac_address)
+nuki = Nuki(nuki_mac_address)
 nuki.authenticate_user(public_key_hex, private_key_hex, id, id_type, name)
 ```
 
@@ -71,12 +60,12 @@ nuki.authenticate_user(public_key_hex, private_key_hex, id, id_type, name)
 Once you are authenticated (and the nuki.cfg file is created on your system), you can use the library to send command to your Nuki lock:
 
 ```python
-import nuki as _nuki
+from nukiclient import Nuki
 
 nuki_mac_address = "00:00:00:00:00:01"
 pin = 0000
 
-nuki = _nuki.Nuki(nuki_mac_address)
+nuki = Nuki(nuki_mac_address)
 
 # Reads the lock state
 nuki.read_lock_state()
